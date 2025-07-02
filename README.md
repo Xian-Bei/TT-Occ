@@ -125,15 +125,3 @@ If you find this work helpful, please star our repo and cite the paper:
   url={https://arxiv.org/abs/2503.08485}, 
 }
 ```
-
-
-- Proj
-  - main.py
-  - scene
-    - datareader.py
-  - submodules
-    - raft
-      - main.py
-      - core
-        - utils.py
-
