@@ -44,11 +44,6 @@ coverage.xml
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
 # VS Code/IDE settings
 .vscode/
 .idea/
@@ -57,27 +52,14 @@ dmypy.json
 # macOS files
 .DS_Store
 
-# Windows files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
 # PyCharm
 *.iml
 
-# Virtual environments
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
 # log files
 *.log
+
+# checkpoints
+*.pth
 
 # Local history
 .history/

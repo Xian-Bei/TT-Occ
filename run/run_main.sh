@@ -165,7 +165,7 @@ occ_setting=(
     "nuCraft"
 )
 variant_ls=(
-    "lidar"
+    # "lidar"
     "depth"
 )
 model="E"
@@ -186,7 +186,7 @@ do
             echo $run_name
             rm -rf $run_name
             mkdir -p $run_name
-            python train.py --model GaussianModel_$model -m $run_name -s $data_path --occ_setting $setting --K $K --variant $variant --iterations 0
+            python train.py --model GaussianModel_$model -m $run_name -s $data_path --occ_setting $setting --K $K --variant $variant
         done
     done
 done

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e  
-pip install -e ./submodules/vggt
+pip install -e ./submodules/VGGT
 pip install -e ./submodules/RAFT
 
 cd submodules/OpenSeeD

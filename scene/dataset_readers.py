@@ -26,7 +26,7 @@ import torch
 import torch.nn.functional as F
 from scipy.spatial import cKDTree
 from custom_utils import unproject_to_world, project_to_pixel
-from submodules.vggt.main import VGGT, process_frame_vggt
+from submodules.VGGT.main import VGGT, process_frame_vggt
 from submodules.RAFT.main import process_frame_raft, load_args
 
 def visualize_point_clouds(pts, ids, window_name="Point Cloud Visualization"):
@@ -343,8 +343,7 @@ def load_nuscenes(path, frame, old_world2new_world, intrinsic3x3_ls, source='lid
         dynamic_mask_ls = []
         intrinsic3x3_scaled_ls = []
 
-        # if not os.path.exists(os.path.join(path, f"vggt_0")):
-        if True:
+        if not os.path.exists(os.path.join(path, f"vggt_0")):
             for cam in range(6):
                 save_dir = os.path.join(path, f"vggt_{cam}")
                 os.makedirs(save_dir, exist_ok=True)
@@ -367,8 +366,7 @@ def load_nuscenes(path, frame, old_world2new_world, intrinsic3x3_ls, source='lid
             prev_scale, depth_time, scale_time = process_frame_vggt(frame, path, intrinsic3x3_scaled_vggt, prev_scale, vggt_model)
             # print(f"Finished VGGT for {frame}, depth time: {depth_time*1000:.0f} ms, scale time: {scale_time*1000:.0f} ms")
         
-        # if not os.path.exists(os.path.join(path, f"raft_0")):
-        if True:
+        if not os.path.exists(os.path.join(path, f"raft_0")):
             for cam in range(6):
                 save_dir = os.path.join(path, f"raft_{cam}")
                 os.makedirs(save_dir, exist_ok=True)
@@ -445,7 +443,7 @@ def load_nuscenes(path, frame, old_world2new_world, intrinsic3x3_ls, source='lid
             semantic_image = cv2.resize(semantic_image, (width, height), interpolation=cv2.INTER_NEAREST)
             valid_mask = semantic_image != 17  # shape: [H, W]
             if cam == 3: # back camera
-                ego_mask = cv2.imread(f"ego_mask_{cam}.png", cv2.IMREAD_GRAYSCALE)
+                ego_mask = cv2.imread(f"scene/ego_mask_{cam}.png", cv2.IMREAD_GRAYSCALE)
                 ego_mask = cv2.resize(ego_mask, (width, height), interpolation=cv2.INTER_NEAREST)
                 valid_mask = valid_mask & (ego_mask > 0)  # remove ego car
 
