@@ -39,7 +39,7 @@ We show that a test-time occupancy framework that integreted with a conmbination
 4. Update dataset paths in all `run_xx.sh`.
 
 ## 🌱 Environment Setup
-For the external repositories used in this project, we provide minimal versions of their codebases under the `submodule` directory. These have been packaged and installed within a unified conda environment, so you do not need to clone or install each dependency separately. Please reproduce our environment and download checkpoints via:
+For the external repositories used in this project, we provide minimal versions of their codebases under the `submodule` directory (with their original licenses retained; please respect and comply with their terms). These have been packaged and installed within a unified conda environment, so you do not need to clone or install each dependency separately. Please reproduce our environment and download checkpoints via:
 
 ```bash
 conda env create -f environment.yml
