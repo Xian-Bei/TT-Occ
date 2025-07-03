@@ -165,7 +165,7 @@ occ_setting=(
     "nuCraft"
 )
 variant_ls=(
-    # "lidar"
+    "lidar"
     "depth"
 )
 model="E"
