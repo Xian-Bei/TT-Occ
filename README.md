@@ -1,5 +1,6 @@
 # TT-Occ: Test-Time Compute for Self-Supervised Occupancy
-Why train a dedicated occupancy network in the era of foundation VLMs?
+![demo](assets/teaser.gif)
+**Why train a dedicated occupancy network in the era of foundation VLMs?**
 We show that a test-time occupancy framework that integreted with a conmbination of VLMs could achieve SOTA performance **without any training or fine-tuning**.
 
 ## 🚩 Timeline
@@ -36,7 +37,7 @@ We show that a test-time occupancy framework that integreted with a conmbination
 3. Download ground-truth occupancy labels:
    * Occ3D-nuScenes GT: [Google Drive](https://drive.google.com/drive/folders/1Xarc91cNCNN3h8Vum-REbI-f0UlSf5Fc)
    * nuCraft GT: [nuCraft GitHub](https://github.com/V2AI/nuCraft_API?tab=readme-ov-file)
-4. Update dataset paths in all `run_xx.sh`.
+4. Update `data_root` of all scripts in `run/`.
 
 ## 🌱 Environment Setup
 For the external repositories used in this project, we provide minimal versions of their codebases under the `submodule` directory (with their original licenses retained; please respect and comply with their terms). These have been packaged and installed within a unified conda environment, so you do not need to clone or install each dependency separately. Please reproduce our environment and download checkpoints via:
@@ -57,7 +58,7 @@ Extract semantic features with OpenSeeD:
 
 ```bash
 conda activate openseed
-bash run_openseed.sh 
+bash run/run_openseed.sh 
 ```
 
 This generates `openseed_x` directories under your data folder.
@@ -67,8 +68,8 @@ Pre-compute depth and optical flow to reduce GPU usage and loading time at runti
 
 ```bash
 conda activate ttocc
-bash run_vggt.sh
-bash run_raft.sh
+bash run/run_vggt.sh
+bash run/run_raft.sh
 ```
 
 These scripts generate `vggt_x` and `raft_x` folders under the data directory.
@@ -80,7 +81,7 @@ Evaluate on the complete 150-scene test split for both Occ3D-nuScenes and nuCraf
 
 ```bash
 conda activate ttocc
-bash run_main.sh
+bash run/run_main.sh
 ```
 
 Results will be saved to `out-main-xx` folders and summarized in `result.json`, matching paper-reported metrics.
