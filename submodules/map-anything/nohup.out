@@ -1,0 +1,79 @@
+/home/uqxsun14/anaconda3/envs/vggt/lib/python3.10/site-packages/lightglue/lightglue.py:24: FutureWarning: `torch.cuda.amp.custom_fwd(args...)` is deprecated. Please use `torch.amp.custom_fwd(args..., device_type='cuda')` instead.
+  @torch.cuda.amp.custom_fwd(cast_inputs=torch.float32)
+Using cache found in /home/uqxsun14/.cache/torch/hub/facebookresearch_dinov2_main
+Arguments: {'scene_dir': '', 'seed': 42, 'memory_efficient_inference': False, 'conf_thres_value': 0.0, 'save_glb': False, 'use_ba': False, 'max_reproj_error': 8.0, 'shared_camera': False, 'camera_type': 'SIMPLE_PINHOLE', 'vis_thresh': 0.2, 'query_frame_num': 8, 'max_query_pts': 4096, 'fine_tracking': True}
+Seed set to: 42
+Using device: cuda
+Using dtype: torch.bfloat16
+Loading MapAnything model from huggingface ...
+Loading pretrained dinov2_vitl14 from torch hub
+Processing scene-0637
+Processing scene-0638
+Processing scene-0770
+Processing scene-0771
+Processing scene-0775
+Processing scene-0777
+Processing scene-0778
+Processing scene-0780
+Processing scene-0781
+Processing scene-0782
+Processing scene-0783
+Processing scene-0784
+Processing scene-0794
+Processing scene-0795
+Processing scene-0796
+Processing scene-0797
+Processing scene-0798
+Processing scene-0799
+Processing scene-0800
+Processing scene-0802
+Processing scene-0904
+Processing scene-0905
+Processing scene-0906
+Processing scene-0907
+Processing scene-0908
+Processing scene-0909
+Processing scene-0910
+Processing scene-0911
+Processing scene-0912
+Processing scene-0913
+Processing scene-0914
+Processing scene-0915
+Processing scene-0916
+Processing scene-0917
+Processing scene-0919
+Processing scene-0920
+Processing scene-0921
+Processing scene-0922
+Processing scene-0923
+Processing scene-0924
+Processing scene-0925
+Processing scene-0926
+Processing scene-0927
+Processing scene-0928
+Processing scene-0929
+Processing scene-0930
+Processing scene-0931
+Processing scene-0962
+Processing scene-0963
+Processing scene-0966
+Processing scene-0967
+Processing scene-0968
+Processing scene-0969
+Processing scene-0971
+Processing scene-0972
+Processing scene-1059
+Processing scene-1060
+Processing scene-1061
+Processing scene-1062
+Processing scene-1063
+Processing scene-1064
+Processing scene-1065
+Processing scene-1066
+Processing scene-1067
+Processing scene-1068
+Processing scene-1069
+Processing scene-1070
+Processing scene-1071
+Processing scene-1072
+Processing scene-1073

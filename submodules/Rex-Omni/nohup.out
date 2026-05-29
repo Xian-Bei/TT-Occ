@@ -1,0 +1,1340 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+============================================================
+Rex-Omni + SAM Integration Pipeline
+============================================================
+
+🤖 Initializing models...
+🚀 Initializing Rex-Omni model...
+Initializing transformers backend...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.68it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.22it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.11it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+✅ Rex-Omni model initialized!
+Processing scene: scene-0221
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+scene-0221 4 28.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+Processing scene: scene-0268
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0269
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0270
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0271
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0272
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0273
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0274
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0275
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0276
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0277
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0278
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0329
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0330
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0331
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0332
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0344
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0345
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0346
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0519
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0520
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0521
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0522
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+scene-0522 4 33.jpg ⚠️  No objects detected. Exiting.
+scene-0522 4 34.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+Processing scene: scene-0523
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0524
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0552
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0553
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0554
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0555
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0556
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0557
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0558
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0559
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0560
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0561
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0562
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0563
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0564
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0565
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0625
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0626
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+scene-0626 4 16.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+Processing scene: scene-0627
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0629
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0630
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0632
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0633
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0634
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0635
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0636
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0637
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0638
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0770
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0771
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0775
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0777
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0778
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0780
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0781
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0782
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0783
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0784
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0794
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0795
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0796
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0797
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0798
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0799
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0800
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0802
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0904
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+scene-0904 4 22.jpg ⚠️  No objects detected. Exiting.
+scene-0904 4 37.jpg ⚠️  No objects detected. Exiting.
+scene-0904 4 38.jpg ⚠️  No objects detected. Exiting.
+scene-0904 4 40.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+Processing scene: scene-0905
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0906
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0907
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0908
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0909
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0910
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0911
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0912
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0913
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0914
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0915
+Processing cam: 0
+Processing cam: 1
+scene-0915 1 27.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-0915 2 10.jpg ⚠️  No objects detected. Exiting.
+scene-0915 2 27.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0916
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0917
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0919
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0920
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0921
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0922
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0923
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0924
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+scene-0924 2 20.jpg ⚠️  No objects detected. Exiting.
+scene-0924 2 21.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0925
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0926
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0927
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0928
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0929
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0930
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0931
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0962
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0963
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0966
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0967
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0968
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0969
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0971
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-0972
+Processing cam: 0
+Processing cam: 1
+Processing cam: 2
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-1059
+Processing cam: 0
+Processing cam: 1
+scene-1059 1 03.jpg ⚠️  No objects detected. Exiting.
+scene-1059 1 17.jpg ⚠️  No objects detected. Exiting.
+scene-1059 1 34.jpg ⚠️  No objects detected. Exiting.
+scene-1059 1 35.jpg ⚠️  No objects detected. Exiting.
+scene-1059 1 36.jpg ⚠️  No objects detected. Exiting.
+scene-1059 1 38.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1059 2 02.jpg ⚠️  No objects detected. Exiting.
+scene-1059 2 03.jpg ⚠️  No objects detected. Exiting.
+scene-1059 2 04.jpg ⚠️  No objects detected. Exiting.
+scene-1059 2 05.jpg ⚠️  No objects detected. Exiting.
+scene-1059 2 07.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1059 4 16.jpg ⚠️  No objects detected. Exiting.
+scene-1059 4 20.jpg ⚠️  No objects detected. Exiting.
+scene-1059 4 21.jpg ⚠️  No objects detected. Exiting.
+scene-1059 4 22.jpg ⚠️  No objects detected. Exiting.
+scene-1059 4 24.jpg ⚠️  No objects detected. Exiting.
+scene-1059 4 25.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1059 5 01.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 02.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 05.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 06.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 07.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 09.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 34.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 35.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 37.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 38.jpg ⚠️  No objects detected. Exiting.
+scene-1059 5 39.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1060
+Processing cam: 0
+scene-1060 0 16.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 1
+scene-1060 1 02.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 03.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 04.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 06.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 09.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 15.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 19.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 23.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 24.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 25.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 26.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 27.jpg ⚠️  No objects detected. Exiting.
+scene-1060 1 29.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1060 2 03.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 04.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 10.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 12.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 13.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 14.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 16.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 18.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 25.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 26.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 27.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 28.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 29.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 36.jpg ⚠️  No objects detected. Exiting.
+scene-1060 2 38.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+scene-1060 3 22.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 4
+scene-1060 4 01.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 02.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 05.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 12.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 16.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 20.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 29.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 30.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 31.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 32.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 33.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 35.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 36.jpg ⚠️  No objects detected. Exiting.
+scene-1060 4 39.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1060 5 00.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 01.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 10.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 12.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 15.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 26.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 27.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 28.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 29.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 31.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 32.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 34.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 35.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 36.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 37.jpg ⚠️  No objects detected. Exiting.
+scene-1060 5 38.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1061
+Processing cam: 0
+Processing cam: 1
+scene-1061 1 01.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 02.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 03.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 04.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 05.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 06.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 08.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 10.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 11.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 12.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 13.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 14.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 15.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 18.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 32.jpg ⚠️  No objects detected. Exiting.
+scene-1061 1 35.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1061 2 02.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 03.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 04.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 05.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 06.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 07.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 09.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 10.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 12.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 13.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 14.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 18.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 19.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 20.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 33.jpg ⚠️  No objects detected. Exiting.
+scene-1061 2 38.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1061 4 03.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 04.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 09.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 11.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 12.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 13.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 14.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 15.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 16.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 17.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 18.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 22.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 34.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 35.jpg ⚠️  No objects detected. Exiting.
+scene-1061 4 36.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1061 5 01.jpg ⚠️  No objects detected. Exiting.
+scene-1061 5 02.jpg ⚠️  No objects detected. Exiting.
+scene-1061 5 03.jpg ⚠️  No objects detected. Exiting.
+scene-1061 5 04.jpg ⚠️  No objects detected. Exiting.
+scene-1061 5 08.jpg ⚠️  No objects detected. Exiting.
+scene-1061 5 11.jpg ⚠️  No objects detected. Exiting.
+scene-1061 5 12.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1062
+Processing cam: 0
+scene-1062 0 02.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 1
+scene-1062 1 01.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 02.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 04.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 05.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 06.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 08.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 09.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 10.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 11.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 12.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 14.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 15.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 16.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 18.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 19.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 22.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 25.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 26.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 33.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 36.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 37.jpg ⚠️  No objects detected. Exiting.
+scene-1062 1 38.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1062 2 02.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 05.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 06.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 09.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 14.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 16.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 17.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 19.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 20.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 21.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 22.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 23.jpg ⚠️  No objects detected. Exiting.
+scene-1062 2 25.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1062 4 03.jpg ⚠️  No objects detected. Exiting.
+scene-1062 4 04.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+Processing scene: scene-1063
+Processing cam: 0
+Processing cam: 1
+scene-1063 1 05.jpg ⚠️  No objects detected. Exiting.
+scene-1063 1 13.jpg ⚠️  No objects detected. Exiting.
+scene-1063 1 14.jpg ⚠️  No objects detected. Exiting.
+scene-1063 1 17.jpg ⚠️  No objects detected. Exiting.
+scene-1063 1 18.jpg ⚠️  No objects detected. Exiting.
+scene-1063 1 22.jpg ⚠️  No objects detected. Exiting.
+scene-1063 1 23.jpg ⚠️  No objects detected. Exiting.
+scene-1063 1 37.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1063 2 00.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 10.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 14.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 17.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 18.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 19.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 20.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 21.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 22.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 25.jpg ⚠️  No objects detected. Exiting.
+scene-1063 2 39.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1063 4 16.jpg ⚠️  No objects detected. Exiting.
+scene-1063 4 20.jpg ⚠️  No objects detected. Exiting.
+scene-1063 4 23.jpg ⚠️  No objects detected. Exiting.
+scene-1063 4 27.jpg ⚠️  No objects detected. Exiting.
+scene-1063 4 30.jpg ⚠️  No objects detected. Exiting.
+scene-1063 4 31.jpg ⚠️  No objects detected. Exiting.
+scene-1063 4 33.jpg ⚠️  No objects detected. Exiting.
+scene-1063 4 36.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1063 5 13.jpg ⚠️  No objects detected. Exiting.
+scene-1063 5 16.jpg ⚠️  No objects detected. Exiting.
+scene-1063 5 19.jpg ⚠️  No objects detected. Exiting.
+scene-1063 5 22.jpg ⚠️  No objects detected. Exiting.
+scene-1063 5 23.jpg ⚠️  No objects detected. Exiting.
+scene-1063 5 25.jpg ⚠️  No objects detected. Exiting.
+scene-1063 5 27.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1064
+Processing cam: 0
+Processing cam: 1
+scene-1064 1 11.jpg ⚠️  No objects detected. Exiting.
+scene-1064 1 14.jpg ⚠️  No objects detected. Exiting.
+scene-1064 1 24.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1064 2 01.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1064 4 05.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+Processing scene: scene-1065
+Processing cam: 0
+Processing cam: 1
+scene-1065 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 08.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 09.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 10.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 11.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 13.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 14.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 20.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 22.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 23.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 24.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 25.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 30.jpg ⚠️  No objects detected. Exiting.
+scene-1065 1 36.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1065 2 04.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 07.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 09.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 12.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 13.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 14.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 19.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 20.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 21.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 23.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 24.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 25.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 26.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 28.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 30.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 31.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 33.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 35.jpg ⚠️  No objects detected. Exiting.
+scene-1065 2 36.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1065 4 35.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+Processing scene: scene-1066
+Processing cam: 0
+Processing cam: 1
+scene-1066 1 04.jpg ⚠️  No objects detected. Exiting.
+scene-1066 1 05.jpg ⚠️  No objects detected. Exiting.
+scene-1066 1 06.jpg ⚠️  No objects detected. Exiting.
+scene-1066 1 17.jpg ⚠️  No objects detected. Exiting.
+scene-1066 1 26.jpg ⚠️  No objects detected. Exiting.
+scene-1066 1 35.jpg ⚠️  No objects detected. Exiting.
+scene-1066 1 37.jpg ⚠️  No objects detected. Exiting.
+scene-1066 1 38.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1066 2 06.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 07.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 09.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 10.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 12.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 20.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 21.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 35.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 36.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 37.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 38.jpg ⚠️  No objects detected. Exiting.
+scene-1066 2 39.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1066 4 14.jpg ⚠️  No objects detected. Exiting.
+scene-1066 4 16.jpg ⚠️  No objects detected. Exiting.
+scene-1066 4 18.jpg ⚠️  No objects detected. Exiting.
+scene-1066 4 28.jpg ⚠️  No objects detected. Exiting.
+scene-1066 4 29.jpg ⚠️  No objects detected. Exiting.
+scene-1066 4 30.jpg ⚠️  No objects detected. Exiting.
+scene-1066 4 36.jpg ⚠️  No objects detected. Exiting.
+scene-1066 4 37.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1066 5 24.jpg ⚠️  No objects detected. Exiting.
+scene-1066 5 26.jpg ⚠️  No objects detected. Exiting.
+scene-1066 5 31.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1067
+Processing cam: 0
+Processing cam: 1
+scene-1067 1 00.jpg ⚠️  No objects detected. Exiting.
+scene-1067 1 02.jpg ⚠️  No objects detected. Exiting.
+scene-1067 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1067 1 13.jpg ⚠️  No objects detected. Exiting.
+scene-1067 1 22.jpg ⚠️  No objects detected. Exiting.
+scene-1067 1 25.jpg ⚠️  No objects detected. Exiting.
+scene-1067 1 27.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1067 2 00.jpg ⚠️  No objects detected. Exiting.
+scene-1067 2 01.jpg ⚠️  No objects detected. Exiting.
+scene-1067 2 06.jpg ⚠️  No objects detected. Exiting.
+scene-1067 2 17.jpg ⚠️  No objects detected. Exiting.
+scene-1067 2 18.jpg ⚠️  No objects detected. Exiting.
+scene-1067 2 38.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1067 4 01.jpg ⚠️  No objects detected. Exiting.
+scene-1067 4 04.jpg ⚠️  No objects detected. Exiting.
+scene-1067 4 06.jpg ⚠️  No objects detected. Exiting.
+scene-1067 4 09.jpg ⚠️  No objects detected. Exiting.
+scene-1067 4 22.jpg ⚠️  No objects detected. Exiting.
+scene-1067 4 24.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1067 5 03.jpg ⚠️  No objects detected. Exiting.
+scene-1067 5 14.jpg ⚠️  No objects detected. Exiting.
+scene-1067 5 22.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1068
+Processing cam: 0
+Processing cam: 1
+scene-1068 1 19.jpg ⚠️  No objects detected. Exiting.
+scene-1068 1 25.jpg ⚠️  No objects detected. Exiting.
+scene-1068 1 26.jpg ⚠️  No objects detected. Exiting.
+scene-1068 1 28.jpg ⚠️  No objects detected. Exiting.
+scene-1068 1 29.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1068 2 21.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1068 4 16.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 17.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 18.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 19.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 22.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 23.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 24.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 25.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 26.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 27.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 28.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 29.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 30.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 31.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 36.jpg ⚠️  No objects detected. Exiting.
+scene-1068 4 37.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1068 5 17.jpg ⚠️  No objects detected. Exiting.
+scene-1068 5 18.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1069
+Processing cam: 0
+Processing cam: 1
+scene-1069 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 08.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 15.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 18.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 19.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 20.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 30.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 31.jpg ⚠️  No objects detected. Exiting.
+scene-1069 1 33.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1069 2 09.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 14.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 21.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 22.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 23.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 24.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 31.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 32.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 33.jpg ⚠️  No objects detected. Exiting.
+scene-1069 2 34.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+Processing scene: scene-1070
+Processing cam: 0
+Processing cam: 1
+scene-1070 1 13.jpg ⚠️  No objects detected. Exiting.
+scene-1070 1 14.jpg ⚠️  No objects detected. Exiting.
+scene-1070 1 15.jpg ⚠️  No objects detected. Exiting.
+scene-1070 1 32.jpg ⚠️  No objects detected. Exiting.
+scene-1070 1 34.jpg ⚠️  No objects detected. Exiting.
+scene-1070 1 35.jpg ⚠️  No objects detected. Exiting.
+scene-1070 1 36.jpg ⚠️  No objects detected. Exiting.
+scene-1070 1 39.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1070 2 00.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 07.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 17.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 18.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 19.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 34.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 36.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 37.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 38.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 39.jpg ⚠️  No objects detected. Exiting.
+scene-1070 2 40.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1070 4 17.jpg ⚠️  No objects detected. Exiting.
+scene-1070 4 19.jpg ⚠️  No objects detected. Exiting.
+scene-1070 4 26.jpg ⚠️  No objects detected. Exiting.
+scene-1070 4 32.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1070 5 17.jpg ⚠️  No objects detected. Exiting.
+scene-1070 5 30.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1071
+Processing cam: 0
+Processing cam: 1
+scene-1071 1 01.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 02.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 03.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 04.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 05.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 06.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 08.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 19.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 20.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 21.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 22.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 23.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 26.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 31.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 36.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 37.jpg ⚠️  No objects detected. Exiting.
+scene-1071 1 38.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1071 2 00.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 01.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 03.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 04.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 05.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 06.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 07.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 09.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 10.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 12.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 22.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 23.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 27.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 28.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 34.jpg ⚠️  No objects detected. Exiting.
+scene-1071 2 39.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+scene-1071 5 11.jpg ⚠️  No objects detected. Exiting.
+scene-1071 5 19.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1072
+Processing cam: 0
+Processing cam: 1
+scene-1072 1 01.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 02.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 03.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 04.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 05.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 06.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 07.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 08.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 09.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 10.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 11.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 14.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 16.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 17.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 18.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 21.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 22.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 24.jpg ⚠️  No objects detected. Exiting.
+scene-1072 1 30.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1072 2 07.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 08.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 09.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 10.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 11.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 12.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 13.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 15.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 17.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 19.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 22.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 23.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 24.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 25.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 26.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 28.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 29.jpg ⚠️  No objects detected. Exiting.
+scene-1072 2 31.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+scene-1072 4 19.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 5
+scene-1072 5 04.jpg ⚠️  No objects detected. Exiting.
+Processing scene: scene-1073
+Processing cam: 0
+Processing cam: 1
+scene-1073 1 25.jpg ⚠️  No objects detected. Exiting.
+scene-1073 1 26.jpg ⚠️  No objects detected. Exiting.
+scene-1073 1 27.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 2
+scene-1073 2 24.jpg ⚠️  No objects detected. Exiting.
+scene-1073 2 25.jpg ⚠️  No objects detected. Exiting.
+scene-1073 2 26.jpg ⚠️  No objects detected. Exiting.
+scene-1073 2 27.jpg ⚠️  No objects detected. Exiting.
+scene-1073 2 29.jpg ⚠️  No objects detected. Exiting.
+scene-1073 2 30.jpg ⚠️  No objects detected. Exiting.
+Processing cam: 3
+Processing cam: 4
+Processing cam: 5
+✅ Total pipeline time: 124420.69 seconds
