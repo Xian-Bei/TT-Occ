@@ -33,7 +33,7 @@ def init(wish_host, wish_port):
             break
         except:
             port += 1
-    print(f"-----------------------Listening on {host}:{port}-----------------------")
+    print(f"-----------------------Listening on {host}:{port}")
     listener.listen()
     listener.settimeout(0)
 

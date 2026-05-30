@@ -10,7 +10,7 @@ from tqdm import tqdm
 from prettytable import PrettyTable
 
 
-dvr = load("dvr", sources=["utils/dvr/dvr.cpp", "utils/dvr/dvr.cu"], verbose=True, extra_cuda_cflags=['-allow-unsupported-compiler'])
+dvr = load("dvr", sources=["utils/dvr/dvr.cpp", "utils/dvr/dvr.cu"], verbose=False, extra_cuda_cflags=['-allow-unsupported-compiler'])
 _pc_range = [-40, -40, -1.0, 40, 40, 5.4]
 _voxel_size = 0.4
 

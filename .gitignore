@@ -72,3 +72,5 @@ vis/
 
 # Ignore any folder that starts with "out"
 out*/
+nouse/
+precomputed/

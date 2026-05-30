@@ -76,9 +76,7 @@ scenes=(
     "scene-0565"
     "scene-0625"
     "scene-0626"
-
     "scene-0627"
-    
     "scene-0629"
     "scene-0630"
     "scene-0632"
@@ -87,9 +85,7 @@ scenes=(
     "scene-0635"
     "scene-0636"
     "scene-0637"
-
     "scene-0638"
-
     "scene-0770"
     "scene-0771"
     "scene-0775"
@@ -116,9 +112,7 @@ scenes=(
     "scene-0909"
     "scene-0910"
     "scene-0911"
-        
     "scene-0912"
-
     "scene-0913"
     "scene-0914"
     "scene-0915"
@@ -164,7 +158,7 @@ scenes=(
 
 occ_setting=(
     "Occ3D"
-    # "nuCraft"
+    "nuCraft"
 )
 variant_ls=(
     "lidar"
@@ -196,6 +190,7 @@ do
             python train.py -m "$run_name" -s "$data_path" \
                 --feature_root "$feature_root" \
                 --occ_setting "$setting" --K "$K" --variant "$variant" \
+                --enable_testtime_precompute --precompute_prefetch \
                 "${extra_args[@]}"
         done
     done

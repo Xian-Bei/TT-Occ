@@ -14,6 +14,10 @@ import torch.nn.functional as F
 from vggt.utils.visual_track import visualize_tracks_on_images
 from vggt.models.vggt import VGGT
 from vggt.utils.load_fn import load_and_preprocess_images
+from tqdm import tqdm
+
+def get_inference_context(use_inference_mode=True):
+    return torch.inference_mode if use_inference_mode else torch.no_grad
 
 
 def create_camera_frustum(K, cam2world, image_size, scale=0.2):
@@ -286,57 +290,102 @@ def resolve_io_paths():
     output_root = os.path.abspath(os.path.expanduser(sys.argv[2])) if len(sys.argv) > 2 else data_root
     return data_root, output_root
 
-def main():
-    peak = 0
-    device = "cuda"
-    root, output_root = resolve_io_paths()
-    # This will automatically download the model weights the first time it's run, which may take a while.
+def build_vggt_runtime(device="cuda"):
     model = VGGT.from_pretrained("facebook/VGGT-1B").to(device).half()
-    with torch.no_grad():
-        H_orig, W_orig = 900, 1600 
-        H_target, W_target = 294, 518
-        scale_x = W_target / W_orig
-        scale_y = H_target / H_orig
-        for scene in sorted([scene for scene in os.listdir(root) if scene.startswith("scene")])[15:]: 
-            depth_time = 0
-            scale_time = 0
-            dynamic_time = 0
-            print(f"Processing {scene}")
-            scene_in = os.path.join(root, scene)
-            scene_out = os.path.join(output_root, scene)
-            os.makedirs(scene_out, exist_ok=True)
-            for cam in range(6):
-                save_dir = os.path.join(scene_out, f"vggt_{cam}")
-                shutil.rmtree(save_dir, ignore_errors=True)
-                os.makedirs(save_dir, exist_ok=True)
-            max_frame = int((len(os.listdir(os.path.join(scene_in, "0")))-1)/2)
-            os.makedirs(os.path.join(scene_out, "vggt_track"), exist_ok=True)
+    return {"model": model, "device": device}
 
-            intrinsic_gts = [ 
-                f"{scene_in}/0/intrinsic.txt",
-                f"{scene_in}/1/intrinsic.txt", 
-                f"{scene_in}/2/intrinsic.txt",
-                f"{scene_in}/3/intrinsic.txt",
-                f"{scene_in}/4/intrinsic.txt",
-                f"{scene_in}/5/intrinsic.txt",
-            ]
-            intrinsic_gts = [np.loadtxt(intrinsic_name) for intrinsic_name in intrinsic_gts]  # (3, 3)
-            intrinsic_gts = np.stack(intrinsic_gts, axis=0).astype(np.float32)  # (6, 3, 3)
-            intrinsic_gts[:, 0, 0] *= scale_x  # fx
-            intrinsic_gts[:, 1, 1] *= scale_y  # fy
-            intrinsic_gts[:, 0, 2] *= scale_x  # cx
-            intrinsic_gts[:, 1, 2] *= scale_y  # cy
-            # intrinsic_gts_cuda = torch.from_numpy(intrinsic_gts).to(device)  # (6, 3, 3)
+def process_scene_vggt(
+    runtime,
+    scene_in,
+    scene_out,
+    start_frame=0,
+    end_frame=None,
+    write_png=False,
+    use_inference_mode=True,
+):
+    peak = 0
+    model = runtime["model"]
+    os.makedirs(scene_out, exist_ok=True)
+    for cam in range(6):
+        save_dir = os.path.join(scene_out, f"vggt_{cam}")
+        os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(os.path.join(scene_out, "vggt_track"), exist_ok=True)
 
-            prev_scale = 20
-            for frame in range(0, max_frame):
-                prev_scale, depth_time, scale_time = process_frame_vggt(frame, scene_in, intrinsic_gts, prev_scale, model, depth_time, scale_time, scene_out=scene_out)
-                peak = max(peak, get_own_gpu_memory())
-                print(peak, "MB")
-                
-                    
-            print(f"Finished {scene}, depth time: {depth_time/max_frame*1000:.0f} ms, scale time: {scale_time/max_frame*1000:.0f} ms")
-            torch.cuda.empty_cache()
+    H_orig, W_orig = 900, 1600
+    H_target, W_target = 294, 518
+    scale_x = W_target / W_orig
+    scale_y = H_target / H_orig
+
+    max_frame = int((len(os.listdir(os.path.join(scene_in, "0"))) - 1) / 2)
+    if end_frame is None:
+        end_frame = max_frame
+
+    intrinsic_gts = [
+        f"{scene_in}/0/intrinsic.txt",
+        f"{scene_in}/1/intrinsic.txt",
+        f"{scene_in}/2/intrinsic.txt",
+        f"{scene_in}/3/intrinsic.txt",
+        f"{scene_in}/4/intrinsic.txt",
+        f"{scene_in}/5/intrinsic.txt",
+    ]
+    intrinsic_gts = [np.loadtxt(intrinsic_name) for intrinsic_name in intrinsic_gts]
+    intrinsic_gts = np.stack(intrinsic_gts, axis=0).astype(np.float32)
+    intrinsic_gts[:, 0, 0] *= scale_x
+    intrinsic_gts[:, 1, 1] *= scale_y
+    intrinsic_gts[:, 0, 2] *= scale_x
+    intrinsic_gts[:, 1, 2] *= scale_y
+
+    prev_scale = 20
+    depth_time = 0
+    scale_time = 0
+    inference_ctx = get_inference_context(use_inference_mode)
+    with inference_ctx():
+        for frame in tqdm(range(start_frame, end_frame), desc="VGGT frames", leave=False):
+            prev_scale, depth_time, scale_time = process_frame_vggt(
+                frame,
+                scene_in,
+                intrinsic_gts,
+                prev_scale,
+                model,
+                depth_time,
+                scale_time,
+                scene_out=scene_out,
+                H_target=H_target,
+                W_target=W_target,
+            )
+            if not write_png:
+                for cam in range(6):
+                    png_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame:0>2d}.png")
+                    if os.path.exists(png_path):
+                        os.remove(png_path)
+            peak = max(peak, get_own_gpu_memory())
+    torch.cuda.empty_cache()
+    return {
+        "peak_mb": peak,
+        "depth_time_ms_per_frame": depth_time / max(1, end_frame - start_frame) * 1000,
+        "scale_time_ms_per_frame": scale_time / max(1, end_frame - start_frame) * 1000,
+    }
+
+def main():
+    root, output_root = resolve_io_paths()
+    runtime = build_vggt_runtime(device="cuda")
+    for scene in sorted([scene for scene in os.listdir(root) if scene.startswith("scene")]):
+        print(f"Processing {scene}")
+        scene_in = os.path.join(root, scene)
+        scene_out = os.path.join(output_root, scene)
+        for cam in range(6):
+            shutil.rmtree(os.path.join(scene_out, f"vggt_{cam}"), ignore_errors=True)
+        stats = process_scene_vggt(
+            runtime,
+            scene_in=scene_in,
+            scene_out=scene_out,
+            write_png=True,
+            use_inference_mode=False,
+        )
+        print(
+            f"Finished {scene}, depth time: {stats['depth_time_ms_per_frame']:.0f} ms, "
+            f"scale time: {stats['scale_time_ms_per_frame']:.0f} ms, peak={stats['peak_mb']} MB"
+        )
 
 if __name__ == "__main__":
     main()

@@ -9,14 +9,31 @@ np.random.seed(1)
 import sys
 pth = '/'.join(sys.path[0].split('/')[:-1])
 sys.path.insert(0, pth)
+
+# Pillow>=10 removed Image.LINEAR; detectron2 0.6 still references it (same as BILINEAR).
+from PIL import Image
+if not hasattr(Image, "LINEAR"):
+    Image.LINEAR = Image.BILINEAR
+
 from detectron2.data import MetadataCatalog
 import torch
 import time
 import logging
 
 from torchvision import transforms
+from tqdm import tqdm
 
-from utils.arguments import load_opt_command
+try:
+    from utils.arguments import load_opt_command
+except ModuleNotFoundError:
+    import importlib.util
+    from pathlib import Path
+
+    _args_path = Path(__file__).resolve().parent / "utils" / "arguments.py"
+    _spec = importlib.util.spec_from_file_location("openseed_utils_arguments", _args_path)
+    _module = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_module)
+    load_opt_command = _module.load_opt_command
 
 from openseed.BaseModel import BaseModel
 from openseed import build_model
@@ -206,9 +223,89 @@ def get_own_gpu_memory(gpu=0):
             return int(mem.strip())  # 单位MB
     return 0  # 如果没查到
 
-if __name__ == "__main__":
-    
+def get_inference_context(use_inference_mode=True):
+    return torch.inference_mode if use_inference_mode else torch.no_grad
+
+def _resolve_weight_path(weight_path):
+    if os.path.isabs(weight_path) and os.path.exists(weight_path):
+        return weight_path
+    candidates = [
+        os.path.abspath(weight_path),
+        os.path.abspath(os.path.join(os.getcwd(), weight_path)),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), weight_path)),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.basename(weight_path))),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return weight_path
+
+def build_openseed_runtime(conf_file, weight_path, use_inference_mode=True):
+    weight_path = _resolve_weight_path(weight_path)
+    opt, _ = load_opt_command(['evaluate', '--conf_files', conf_file, '--overrides', 'WEIGHT', weight_path])
+    pretrained_pth = _resolve_weight_path(opt['WEIGHT'])
+    model = BaseModel(opt, build_model(opt)).from_pretrained(pretrained_pth).eval().cuda()
+
+    t = [transforms.Resize(512, interpolation=Image.BICUBIC)]
+    transform = transforms.Compose(t)
+    model.model.sem_seg_head.predictor.lang_encoder.get_text_embeddings(
+        thing_classes + stuff_classes, is_eval=False
+    )
+    model.model.metadata = metadata
+    model.model.sem_seg_head.num_classes = len(thing_classes + stuff_classes)
+    return {
+        "model": model,
+        "transform": transform,
+        "use_inference_mode": use_inference_mode,
+    }
+
+def process_scene(runtime, scene_in, scene_out, save_vis=False):
+    model = runtime["model"]
+    transform = runtime["transform"]
+    use_inference_mode = runtime["use_inference_mode"]
     peak = 0
+    batch_size = 1
+    inference_ctx = get_inference_context(use_inference_mode)
+    with inference_ctx():
+        for cam in tqdm([0, 1, 2, 3, 4, 5], desc="OpenSeeD cams", leave=False):
+            image_dir = os.path.join(scene_in, f'{cam}')
+            cam_output_root = os.path.join(scene_out, f'openseed_{cam}')
+            os.makedirs(cam_output_root, exist_ok=True)
+            vis_dir = None
+            if save_vis:
+                vis_dir = os.path.join(cam_output_root, 'vis')
+                os.makedirs(vis_dir, exist_ok=True)
+            batch_inputs = []
+            image_list = [image_name for image_name in sorted(os.listdir(image_dir)) if image_name.endswith('.jpg')]
+            for image_idx, image_name in enumerate(
+                tqdm(image_list, desc=f"OpenSeeD cam{cam}", leave=False)
+            ):
+                image_pth = os.path.join(image_dir, image_name)
+                image_ori = Image.open(image_pth).convert("RGB")
+                width = image_ori.size[0]
+                height = image_ori.size[1]
+                image = transform(image_ori)
+                image = np.asarray(image)
+                image_ori = np.asarray(image_ori)
+                images = torch.from_numpy(image).permute(2, 0, 1).cuda()
+                batch_inputs.append(
+                    {
+                        'image': images,
+                        'height': height,
+                        'width': width,
+                        'image_name': image_name.split('.')[0],
+                        'image_ori': image_ori,
+                    }
+                )
+                if len(batch_inputs) == batch_size or image_idx == len(image_list) - 1:
+                    outputs = model.forward(batch_inputs)
+                    save(outputs, batch_inputs, cam_output_root, save_vis, vis_dir)
+                    batch_inputs = []
+                peak = max(peak, get_own_gpu_memory())
+    torch.cuda.empty_cache()
+    return {"peak_mb": peak}
+
+if __name__ == "__main__":
     opt, cmdline_args = load_opt_command(None)
     if cmdline_args.user_dir:
         absolute_user_dir = os.path.abspath(cmdline_args.user_dir)
@@ -221,56 +318,20 @@ if __name__ == "__main__":
         output_root = nus_dir
     scene_list = [scene for scene in sorted(os.listdir(nus_dir)) if scene.startswith('scene')]
 
-    pretrained_pth = os.path.join(opt['WEIGHT'])
-
-    model = BaseModel(opt, build_model(opt)).from_pretrained(pretrained_pth).eval().cuda()
-
-    t = []
-    t.append(transforms.Resize(512, interpolation=Image.BICUBIC))
-    transform = transforms.Compose(t)
- 
-    model.model.sem_seg_head.predictor.lang_encoder.get_text_embeddings(thing_classes + stuff_classes, is_eval=False)
-    model.model.metadata = metadata
-    model.model.sem_seg_head.num_classes = len(thing_classes + stuff_classes)
-
+    runtime = build_openseed_runtime(
+        conf_file=cmdline_args.conf_files[0],
+        weight_path=opt['WEIGHT'],
+        use_inference_mode=False,
+    )
     save_vis = True
-    batch_size = 1
-    with torch.no_grad():
-        for scene_id, scene in enumerate(scene_list):
-            for cam in [0, 1, 2, 3, 4, 5]:
-                print(datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"), scene_id, scene, cam)
-                image_dir = os.path.join(nus_dir, scene, f'{cam}')
-
-                scene_out = os.path.join(output_root, scene)
-                os.makedirs(scene_out, exist_ok=True)
-                cam_output_root = os.path.join(scene_out, f'openseed_{cam}')
-                if os.path.exists(cam_output_root):
-                    shutil.rmtree(cam_output_root)
-                os.makedirs(cam_output_root, exist_ok=True)
-                    
-                if save_vis:
-                    vis_dir = os.path.join(cam_output_root,'vis')
-                    os.makedirs(vis_dir, exist_ok=True)
-                batch_inputs = []
-                image_list = [image_name for image_name in sorted(os.listdir(image_dir)) if image_name.endswith('.jpg')]
-                start_time = time.time()
-                for image_idx, image_name in enumerate(image_list):
-                    image_pth = os.path.join(image_dir, image_name)
-                    image_ori = Image.open(image_pth).convert("RGB")
-                    width = image_ori.size[0]
-                    height = image_ori.size[1]
-                    image = transform(image_ori)
-                    image = np.asarray(image)
-                    image_ori = np.asarray(image_ori)
-                    images = torch.from_numpy(image).permute(2,0,1).cuda()
-                    batch_inputs.append({'image': images, 'height': height, 'width': width, 'image_name': image_name.split('.')[0], 'image_ori': image_ori})
-                    if len(batch_inputs) == batch_size or image_idx == len(image_list)-1:
-                        outputs = model.forward(batch_inputs)
-                        # threading.Thread(target=save, args=(outputs, batch_inputs, output_root, save_vis, vis_dir), daemon=False).start()
-                        save(outputs, batch_inputs, cam_output_root, save_vis, vis_dir)
-
-                        batch_inputs = []
-                    peak = max(peak, get_own_gpu_memory())
-                    print(peak, "MB")
-                print(f'average time: {(time.time()-start_time)/len(image_list)*1000*6:.0f}ms')
-                torch.cuda.empty_cache()
+    for scene_id, scene in enumerate(scene_list):
+        print(datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"), scene_id, scene)
+        scene_out = os.path.join(output_root, scene)
+        if os.path.exists(scene_out):
+            shutil.rmtree(scene_out)
+        os.makedirs(scene_out, exist_ok=True)
+        start_time = time.time()
+        stats = process_scene(runtime, scene_in=os.path.join(nus_dir, scene), scene_out=scene_out, save_vis=save_vis)
+        num_images = len([f for f in os.listdir(os.path.join(nus_dir, scene, "0")) if f.endswith(".jpg")]) * 6
+        print(f'average time: {(time.time()-start_time)/max(1, num_images)*1000:.0f}ms')
+        print(stats["peak_mb"], "MB")

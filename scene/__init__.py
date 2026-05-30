@@ -21,11 +21,9 @@ import torch
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from custom_utils import *
-from utils.occ_eval import (
-    eval_miou_for_scene,
-    eval_rayiou_nucraft_for_scene,
-    eval_rayiou_occ3d_for_scene,
-)
+from utils.ray_metrics_cuda import generate_lidar_rays, main_rayiou
+from utils.occ_eval import get_lidar_origin_in_lidar_ref, lidar_origin_in_ego
+from utils.testtime_precompute import ScenePrecomputeManager
 
 class Scene:
 
@@ -45,6 +43,9 @@ class Scene:
 
     @torch.no_grad()
     def load_frame(self, frame_id):
+        if self.opt.enable_testtime_precompute:
+            self.precompute_manager.wait_prefetch(self.scene_path)
+            self.precompute_manager.ensure_scene_features(self.scene_path, self.opt.variant, self.opt)
         scene_info = load_nuscenes(
             self.scene_path,
             frame_id,
@@ -81,6 +82,8 @@ class Scene:
             except Exception as e:
                 future.set_exception(e)
             self.next_load = future
+        if self.opt.enable_testtime_precompute and self.opt.precompute_prefetch:
+            self.precompute_manager.prefetch_scene(self.scene_path, self.opt.variant, self.opt)
     
     def load_intrinsics(self):
         new_world2old_world = np.loadtxt(join(self.scene_path, "0/00.txt"))
@@ -98,6 +101,7 @@ class Scene:
         self.background = background
         self.opt = optimization_params
         self.gaussians = gaussians
+        self.precompute_manager = ScenePrecomputeManager.get()
         self.load_intrinsics()
         self.load_executor = ThreadPoolExecutor(max_workers=1) if self.opt.multi_thread else None
         self.save_executor = ThreadPoolExecutor(max_workers=1) if self.opt.multi_thread else None
@@ -117,6 +121,14 @@ class Scene:
             os.makedirs(self.occ_path, exist_ok=True)
         if self.opt.eval_occ or self.opt.eval_rayiou:
             self.mapping = json.load(open(os.path.join(root, "mapping.json")))[self.scene]
+        self.hist_occ3d_camera = torch.zeros((num_classes + 1, num_classes + 1), device='cuda')
+        self.hist_nucraft = torch.zeros((num_classes + 1, num_classes + 1), device='cuda')
+        self.rayiou_occ3d_pred = []
+        self.rayiou_occ3d_gt = []
+        self.rayiou_occ3d_origin = []
+        self.rayiou_nucraft_pred = []
+        self.rayiou_nucraft_gt = []
+        self.lidar_rays = torch.from_numpy(generate_lidar_rays()).to(device='cuda', dtype=torch.float32)
         # self.vis_occ = VoxelGridVisualizer('Comparison', 1, 600) if self.opt.vis_occ else None
         # os.makedirs(join(self.model_path, "Occ"), exist_ok=True)
         self.update_time = 0
@@ -168,8 +180,8 @@ class Scene:
             self.voxelization_time += time.time() - start_time
             voxel_cls_from_gs[voxel_cls_from_gs == 1] = 0
             voxel_cls_from_gs[voxel_cls_from_gs == 9] = 0
-            # if self.opt.eval_occ_each_time:
-            #     self.eval(timestep, voxel_indices_from_gs, voxel_cls_from_gs)
+            if self.opt.eval_online and (self.opt.eval_occ or self.opt.eval_rayiou):
+                self.eval(timestep, voxel_indices_from_gs, voxel_cls_from_gs)
             occ_path = join(self.occ_path, f"{timestep:02d}.pth")
             occ_payload = {
                 "voxel_indices": voxel_indices_from_gs.cpu(),
@@ -183,26 +195,97 @@ class Scene:
             
     def eval(self, timestep, voxel_indices_from_gs, voxel_cls_from_gs):
         if self.opt.occ_setting == "Occ3D":
-            new_hist_occ_camera, dense_cls_occ_np = eval_occ(timestep, voxel_indices_from_gs, voxel_cls_from_gs, "Occ3D", self.scene, self.mapping, gt_path=self.opt.occ3d_path)
-            self.hist_occ3d_camera += new_hist_occ_camera
-            iou, miou, mious = cal_iou_miou(new_hist_occ_camera)
-            print(f"Occ3D: timestep: {timestep}, IoU: {iou:.4f}, mIoU: {miou:.4f}")
-            # if self.vis_occ is not None:
-                # voxel_indices_occ, voxel_color_ids_occ = dense2sparse(dense_cls_occ_np)
-                # view_sparse_voxel([(voxel_indices_occ, voxel_color_ids_occ), (voxel_indices_from_gs.cpu().numpy(), voxel_cls_from_gs.cpu().numpy())], self.vis_occ)
+            if self.opt.eval_occ:
+                new_hist_occ_camera, _ = eval_occ(
+                    timestep,
+                    voxel_indices_from_gs,
+                    voxel_cls_from_gs,
+                    "Occ3D",
+                    self.scene,
+                    self.mapping,
+                    gt_path=self.opt.occ3d_path,
+                )
+                self.hist_occ3d_camera += new_hist_occ_camera
+                iou, miou, _ = cal_iou_miou(new_hist_occ_camera)
+                print(f"Occ3D: timestep: {timestep}, IoU: {iou:.4f}, mIoU: {miou:.4f}")
+
+            if self.opt.eval_rayiou and self.opt.occ3d_path:
+                dense_cls_occ_np, mask = load_occ3d_gt(
+                    join(self.opt.occ3d_path, self.scene, f"{self.mapping['sample_token'][f'{timestep:0>2d}']}/labels.npz")
+                )
+                dense_cls_occ = torch.tensor(dense_cls_occ_np, device='cuda', dtype=torch.long)
+                dense_cls_from_gs = sparse2dense_torch(
+                    voxel_indices_from_gs.long(),
+                    voxel_cls_from_gs.long(),
+                    *settings['Occ3D'],
+                )
+                mask_ts = torch.tensor(mask, device='cuda')
+                dense_cls_occ[~mask_ts] = 17
+                dense_cls_from_gs[~mask_ts] = 17
+
+                tp_ls = []
+                ego2world = np.loadtxt(join(self.data_root, self.scene, 'ego', f'{timestep:02d}.txt'))
+                for i in range(0, self.total_frame, 5):
+                    lidar2world = np.loadtxt(join(self.data_root, self.scene, 'lidar', f'{i:02d}.txt'))
+                    lidar_origin_ego = lidar_origin_in_ego(ego2world, lidar2world).reshape(1, 1, 3)
+                    tp_ls.append(torch.tensor(lidar_origin_ego, device='cpu'))
+                lidar_origin_ego = torch.cat(tp_ls, dim=1)
+                self.rayiou_occ3d_origin.append(lidar_origin_ego)
+                self.rayiou_occ3d_gt.append(dense_cls_occ.cpu().numpy().astype(np.uint8))
+                self.rayiou_occ3d_pred.append(dense_cls_from_gs.cpu().numpy().astype(np.uint8))
+
         elif self.opt.occ_setting == "nuCraft":
-            new_hist_nu, nucraft_gt = eval_occ(timestep, voxel_indices_from_gs, voxel_cls_from_gs, "nuCraft", self.scene, self.mapping, gt_path=self.opt.nucraft_path)
-            self.hist_nucraft += new_hist_nu
-            iou, miou, mious = cal_iou_miou(new_hist_nu)
-            print(f"nuCraft: timestep: {timestep}, IoU: {iou:.4f}, mIoU: {miou:.4f}")
+            if self.opt.eval_occ:
+                new_hist_nu, _ = eval_occ(
+                    timestep,
+                    voxel_indices_from_gs,
+                    voxel_cls_from_gs,
+                    "nuCraft",
+                    self.scene,
+                    self.mapping,
+                    gt_path=self.opt.nucraft_path,
+                )
+                self.hist_nucraft += new_hist_nu
+                iou, miou, _ = cal_iou_miou(new_hist_nu)
+                print(f"nuCraft: timestep: {timestep}, IoU: {iou:.4f}, mIoU: {miou:.4f}")
 
-            # if self.vis_occ is not None:
-            #     view_sparse_voxel([nucraft_gt, (voxel_indices_from_gs.cpu().numpy(), voxel_cls_from_gs.cpu().numpy())], self.vis_occ)
-
-        # mask = voxel_cls_from_gs != 0
-        # voxel_indices_from_gs = voxel_indices_from_gs[mask]
-        # voxel_cls_from_gs = voxel_cls_from_gs[mask]
-        # view_sparse_voxel([(voxel_indices_from_gs.cpu().numpy(), voxel_cls_from_gs.cpu().numpy())], self.vis_occ, f"vis/gradually/{self.scene}_{timestep}.png")
+            if self.opt.eval_rayiou and self.opt.nucraft_path:
+                lidar2world_ref = np.loadtxt(join(self.data_root, self.scene, 'lidar', f'{timestep:02d}.txt'))
+                tp_ls = []
+                for i in range(0, self.total_frame, 5):
+                    lidar2world = np.loadtxt(join(self.data_root, self.scene, 'lidar', f'{i:02d}.txt'))
+                    lidar_origin_lidar_ref = get_lidar_origin_in_lidar_ref(
+                        lidar2world_ref, lidar2world
+                    ).reshape(1, 1, 3)
+                    tp_ls.append(torch.tensor(lidar_origin_lidar_ref, device='cpu'))
+                lidar_origins = torch.cat(tp_ls, dim=1).to('cuda')
+                nucraft_gt = load_nucraft_gt(join(self.opt.nucraft_path, f"{self.mapping['LIDAR_TOP'][f'{timestep:0>2d}']}.bin"))
+                dense_cls_gt = torch.tensor(
+                    sparse2dense(*nucraft_gt, *settings['nuCraft_np']).astype(np.uint8),
+                    device='cuda',
+                    dtype=torch.long,
+                )
+                dense_cls_pred = sparse2dense_torch(
+                    voxel_indices_from_gs.long(),
+                    voxel_cls_from_gs.long(),
+                    *settings['nuCraft'],
+                )
+                pcd_pred = process_one_sample(
+                    sem_pred=dense_cls_pred,
+                    lidar_rays=self.lidar_rays,
+                    output_origin=lidar_origins,
+                    occ_class_names=semantic_list,
+                )
+                pcd_gt = process_one_sample(
+                    sem_pred=dense_cls_gt,
+                    lidar_rays=self.lidar_rays,
+                    output_origin=lidar_origins,
+                    occ_class_names=semantic_list,
+                )
+                free_id = len(semantic_list) - 1
+                valid_mask = (pcd_gt[:, 0].long() != free_id)
+                self.rayiou_nucraft_pred.append(pcd_pred[valid_mask])
+                self.rayiou_nucraft_gt.append(pcd_gt[valid_mask])
 
 
     def getTrainCameras(self, iteration):
@@ -222,28 +305,16 @@ class Scene:
             "voxelization_time": f"{self.voxelization_time/self.total_frame*1000:.0f}ms",
         }
 
-        if self.opt.save_occ and (self.opt.eval_occ or self.opt.eval_rayiou):
-            scene_dir = self.model_path
-
+        if self.opt.eval_online and (self.opt.eval_occ or self.opt.eval_rayiou):
             if self.opt.eval_occ:
                 if self.opt.occ_setting == "Occ3D":
-                    gt_path = self.opt.occ3d_path
+                    iou, miou, mious = cal_iou_miou(self.hist_occ3d_camera)
                     result_key = 'Occ3D_cameramask'
                 elif self.opt.occ_setting == "nuCraft":
-                    gt_path = self.opt.nucraft_path
+                    iou, miou, mious = cal_iou_miou(self.hist_nucraft)
                     result_key = 'nuCraft'
                 else:
                     raise ValueError(f"Unsupported occ_setting: {self.opt.occ_setting}")
-
-                iou, miou, mious = eval_miou_for_scene(
-                    scene_dir,
-                    self.scene,
-                    self.opt.occ_setting,
-                    self.mapping,
-                    gt_path,
-                    data_path=self.data_root,
-                    model_name=self.model_name,
-                )
                 mious_dict = {f'{semantic_list[i]}': float(mious[i]) for i in range(len(mious))}
                 self.result[result_key] = {
                     'Avg': {
@@ -255,30 +326,28 @@ class Scene:
                 print(f"{result_key}: iou={iou:.4f}, miou={miou:.4f}")
 
             if self.opt.eval_rayiou:
-                if self.opt.nucraft_path:
-                    print(f"RayIoU nuCraft ({self.scene}):")
-                    nucraft_ray = eval_rayiou_nucraft_for_scene(
-                        scene_dir,
-                        self.scene,
-                        self.data_root,
-                        self.mapping,
-                        self.opt.nucraft_path,
-                        setting="nuCraft",
-                        model_name=self.model_name,
-                    )
-                    self.result['nuCraft_rayiou'] = {
-                        k: v for k, v in nucraft_ray.items() if k != 'table'
-                    }
-                if self.opt.occ3d_path:
+                if self.opt.occ_setting == "Occ3D" and len(self.rayiou_occ3d_pred) > 0:
                     print(f"RayIoU Occ3D ({self.scene}):")
-                    occ3d_ray = eval_rayiou_occ3d_for_scene(
-                        scene_dir,
-                        self.scene,
-                        self.data_root,
-                        self.mapping,
-                        self.opt.occ3d_path,
+                    occ3d_ray = main_rayiou(
+                        self.rayiou_occ3d_pred,
+                        self.rayiou_occ3d_gt,
+                        self.rayiou_occ3d_origin,
+                        occ_class_names=semantic_list,
                     )
-                    self.result['Occ3D_rayiou'] = occ3d_ray
+                    self.result['Occ3D_rayiou'] = {k: v for k, v in occ3d_ray.items() if k != 'table'}
+                if self.opt.occ_setting == "nuCraft" and len(self.rayiou_nucraft_pred) > 0:
+                    print(f"RayIoU nuCraft ({self.scene}):")
+                    iou_list = calc_rayiou(self.rayiou_nucraft_pred, self.rayiou_nucraft_gt, semantic_list)
+                    rayiou_0 = torch.nanmean(iou_list[0])
+                    rayiou_1 = torch.nanmean(iou_list[1])
+                    rayiou_2 = torch.nanmean(iou_list[2])
+                    rayiou = torch.nanmean(torch.stack([iou_list[0], iou_list[1], iou_list[2]], dim=0))
+                    self.result['nuCraft_rayiou'] = {
+                        'RayIoU': rayiou.item(),
+                        'RayIoU@1': rayiou_0.item(),
+                        'RayIoU@2': rayiou_1.item(),
+                        'RayIoU@4': rayiou_2.item(),
+                    }
 
             file_path = join(self.model_path, "result.json")
             json_data = json.dumps(self.result, default=custom_encoder, indent=4)
@@ -299,6 +368,8 @@ class Scene:
             self.load_executor.shutdown(wait=True)
         if self.save_executor is not None:
             self.save_executor.shutdown(wait=True)
+        if hasattr(self, "precompute_manager"):
+            self.precompute_manager.close()
 
         
 

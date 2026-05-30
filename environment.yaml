@@ -234,7 +234,8 @@ dependencies:
       - parso
       - pathspec
       - pexpect
-      - pillow
+      - pillow>=9.1
+      - transformers>=4.30,<4.46
       - platformdirs
       - plotly
       - plyfile
@@ -266,7 +267,7 @@ dependencies:
       - ruff
       - safehttpx
       - safetensors
-      - scikit-image
+      - scikit-image>=0.22,<0.25
       - scikit-learn
       - seaborn
       - semantic-version

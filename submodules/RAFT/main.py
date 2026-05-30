@@ -17,8 +17,12 @@ from raft.raft import RAFT
 from raft.utils import flow_viz
 from raft.utils.utils import InputPadder
 import torch.nn.functional as F
+from tqdm import tqdm
 
 DEVICE = 'cuda'
+
+def get_inference_context(use_inference_mode=True):
+    return torch.inference_mode if use_inference_mode else torch.no_grad
 
 def compute_ego_flow_batch(depth_0, K, cam2world_0, cam2world_1):
     """
@@ -234,50 +238,98 @@ def resolve_io_paths():
     output_root = os.path.abspath(os.path.expanduser(sys.argv[2])) if len(sys.argv) > 2 else data_root
     return data_root, output_root
 
-def main():
-    peak = 0
-    data_path, output_root = resolve_io_paths()
-    model, padder = load_args("raft-things.pth")
-    H_orig, W_orig = 900, 1600 
+def build_raft_runtime(model_path="raft-things.pth"):
+    model, padder = load_args(model_path)
+    return {"model": model, "padder": padder}
+
+def process_scene_raft(
+    runtime,
+    scene_in,
+    scene_out,
+    start_frame=0,
+    end_frame=None,
+    save_debug_vis=False,
+    use_inference_mode=True,
+):
+    model = runtime["model"]
+    padder = runtime["padder"]
+    H_orig, W_orig = 900, 1600
     H_target, W_target = 294, 518
-    # H_target, W_target = 448, 768
     scale_x = W_target / W_orig
     scale_y = H_target / H_orig
-    with torch.no_grad():
-        for scene in sorted([scene for scene in os.listdir(data_path) if scene.startswith("scene")])[15:]: 
-            scene_in = os.path.join(data_path, scene)
-            scene_out = os.path.join(output_root, scene)
-            os.makedirs(scene_out, exist_ok=True)
-            for cam in range(6):
-                save_path = os.path.join(scene_out, f'raft_{cam}')
-                shutil.rmtree(save_path, ignore_errors=True)
-                os.makedirs(save_path, exist_ok=True)
-            intrinsic_gts = [ 
-                f"{scene_in}/0/intrinsic.txt",
-                f"{scene_in}/1/intrinsic.txt", 
-                f"{scene_in}/2/intrinsic.txt",
-                f"{scene_in}/3/intrinsic.txt",
-                f"{scene_in}/4/intrinsic.txt",
-                f"{scene_in}/5/intrinsic.txt",
-            ]
-            intrinsic_gts = [np.loadtxt(intrinsic_name) for intrinsic_name in intrinsic_gts]  # (3, 3)
-            intrinsic_gts = np.stack(intrinsic_gts, axis=0).astype(np.float32)  # (6, 3, 3)
-            intrinsic_gts = torch.from_numpy(intrinsic_gts).to(DEVICE)  # (6, 3, 3)
-            intrinsic_gts[:, 0, 0] *= scale_x  # fx
-            intrinsic_gts[:, 1, 1] *= scale_y  # fy
-            intrinsic_gts[:, 0, 2] *= scale_x  # cx
-            intrinsic_gts[:, 1, 2] *= scale_y  # cy
-            start_time = time.time()
-            max_frame = int((len(os.listdir(os.path.join(scene_in, '0')))-1)/2)
-            for frame in range(max_frame): 
-                if frame == 0:
-                    image_prev, depth_prev, cam2world_prev = process_frame_raft(frame, scene_in, model, padder, intrinsic_gts, scene_out=scene_out)
-                else:
-                    image_prev, depth_prev, cam2world_prev = process_frame_raft(frame, scene_in, model, padder, intrinsic_gts, image_prev, depth_prev, cam2world_prev, scene_out=scene_out)
-                
-                
 
-            print(f"{scene} Processing time per frame: {(time.time() - start_time)/max_frame*1000:.2f}ms")
+    os.makedirs(scene_out, exist_ok=True)
+    for cam in range(6):
+        save_path = os.path.join(scene_out, f'raft_{cam}')
+        os.makedirs(save_path, exist_ok=True)
+
+    intrinsic_gts = [
+        f"{scene_in}/0/intrinsic.txt",
+        f"{scene_in}/1/intrinsic.txt",
+        f"{scene_in}/2/intrinsic.txt",
+        f"{scene_in}/3/intrinsic.txt",
+        f"{scene_in}/4/intrinsic.txt",
+        f"{scene_in}/5/intrinsic.txt",
+    ]
+    intrinsic_gts = [np.loadtxt(intrinsic_name) for intrinsic_name in intrinsic_gts]
+    intrinsic_gts = np.stack(intrinsic_gts, axis=0).astype(np.float32)
+    intrinsic_gts = torch.from_numpy(intrinsic_gts).to(DEVICE)
+    intrinsic_gts[:, 0, 0] *= scale_x
+    intrinsic_gts[:, 1, 1] *= scale_y
+    intrinsic_gts[:, 0, 2] *= scale_x
+    intrinsic_gts[:, 1, 2] *= scale_y
+
+    max_frame = int((len(os.listdir(os.path.join(scene_in, '0'))) - 1) / 2)
+    if end_frame is None:
+        end_frame = max_frame
+
+    image_prev = depth_prev = cam2world_prev = None
+    start_time = time.time()
+    inference_ctx = get_inference_context(use_inference_mode)
+    with inference_ctx():
+        for frame in tqdm(range(start_frame, end_frame), desc="RAFT frames", leave=False):
+            image_prev, depth_prev, cam2world_prev = process_frame_raft(
+                frame,
+                scene_in,
+                model,
+                padder,
+                intrinsic_gts,
+                image_prev,
+                depth_prev,
+                cam2world_prev,
+                scene_out=scene_out,
+                H_target=H_target,
+                W_target=W_target,
+            )
+    if not save_debug_vis:
+        for cam in range(6):
+            save_path = os.path.join(scene_out, f'raft_{cam}')
+            for f in os.listdir(save_path):
+                if not f.endswith("_5mask.png"):
+                    os.remove(os.path.join(save_path, f))
+    torch.cuda.empty_cache()
+    elapsed = time.time() - start_time
+    return {
+        "time_ms_per_frame": elapsed / max(1, end_frame - start_frame) * 1000,
+    }
+
+def main():
+    data_path, output_root = resolve_io_paths()
+    runtime = build_raft_runtime("raft-things.pth")
+    for scene in sorted([scene for scene in os.listdir(data_path) if scene.startswith("scene")]):
+        scene_in = os.path.join(data_path, scene)
+        scene_out = os.path.join(output_root, scene)
+        for cam in range(6):
+            shutil.rmtree(os.path.join(scene_out, f'raft_{cam}'), ignore_errors=True)
+        stats = process_scene_raft(
+            runtime,
+            scene_in=scene_in,
+            scene_out=scene_out,
+            save_debug_vis=False,
+            use_inference_mode=False,
+        )
+        max_frame = int((len(os.listdir(os.path.join(scene_in, '0'))) - 1) / 2)
+        print(f"{scene} Processing time per frame: {stats['time_ms_per_frame']:.2f}ms (n={max_frame})")
 
 if __name__ == '__main__':
     main()

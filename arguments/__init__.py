@@ -179,6 +179,7 @@ class OptimizationParams(ParamGroup):
         self.nucraft_path = ""
         self.save_ply = False
         self.save_occ = True
+        self.eval_online = 1
         self.eval_occ = False
         self.eval_rayiou = False
         self.use_fusion = False
@@ -195,6 +196,12 @@ class OptimizationParams(ParamGroup):
         self.dynamic_mask_prefix = "raft"
         self.dynamic_mask_suffix = "_5mask.png"
         self.feature_root = ""
+        self.enable_testtime_precompute = False
+        self.precompute_force = False
+        self.precompute_save_vis = False
+        self.precompute_frame_step = 1
+        self.precompute_prefetch = True
+        self.precompute_inference_mode = True
         
         super().__init__(parser, "Optimization Parameters")
         

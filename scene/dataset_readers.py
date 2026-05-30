@@ -31,6 +31,20 @@ def precomputed_scene_dir(scene_path, feature_root=""):
         return join(os.path.abspath(feature_root), os.path.basename(os.path.normpath(scene_path)))
     return scene_path
 
+def scene_feature_requirements(
+    source="lidar",
+    semantic_prefix="openseed",
+    depth_prefix="vggt",
+    depth_ext="npy",
+    dynamic_mask_prefix="raft",
+    dynamic_mask_suffix="_5mask.png",
+):
+    reqs = [f"{semantic_prefix}_{cam}" for cam in range(6)]
+    if source == "depth":
+        reqs += [f"{depth_prefix}_{cam}" for cam in range(6)]
+        reqs += [f"{dynamic_mask_prefix}_{cam}" for cam in range(6)]
+    return reqs
+
 def require_file(path, description):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Missing {description}: {path}")

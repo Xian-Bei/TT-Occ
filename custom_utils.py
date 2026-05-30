@@ -155,11 +155,12 @@ def format_floats_as_percentage(d):
 
 def eval_occ(timestep, voxel_indices_from_gs, voxel_cls_from_gs, occ_setting, scene, mapping, gt_path=None):
     dense_cls_from_gs = sparse2dense_torch(voxel_indices_from_gs, voxel_cls_from_gs, *settings[occ_setting])
+    device = dense_cls_from_gs.device
     if occ_setting == "Occ3D":
         dense_cls_occ_np, mask = load_occ3d_gt(
             join(gt_path, scene, f"{mapping['sample_token'][f'{timestep:0>2d}']}/labels.npz"))
-        dense_cls_occ = torch.tensor(dense_cls_occ_np, device='cuda')
-        mask = torch.tensor(mask, device='cuda')
+        dense_cls_occ = torch.tensor(dense_cls_occ_np, device=device)
+        mask = torch.tensor(mask, device=device)
         
         new_hist_occ_camera = cal_hist(pred_occ=dense_cls_from_gs[mask], gt_occ=dense_cls_occ[mask])
 
@@ -167,7 +168,7 @@ def eval_occ(timestep, voxel_indices_from_gs, voxel_cls_from_gs, occ_setting, sc
         
     elif occ_setting == "nuCraft":
         nucraft_gt = load_nucraft_gt(join(gt_path, f"{mapping['LIDAR_TOP'][f'{timestep:0>2d}']}.bin"))
-        dense_cls_nucraft = torch.tensor(sparse2dense(*nucraft_gt, *settings['nuCraft_np']), device='cuda')
+        dense_cls_nucraft = torch.tensor(sparse2dense(*nucraft_gt, *settings['nuCraft_np']), device=device)
         new_hist_nu = cal_hist(dense_cls_from_gs, dense_cls_nucraft)
         return new_hist_nu, nucraft_gt
         
@@ -176,8 +177,9 @@ def eval_occ(timestep, voxel_indices_from_gs, voxel_cls_from_gs, occ_setting, sc
         raise ValueError("Unsupported occ_setting")
 
 def eval_occ_2(timestep, dense_cls_from_gs, occ_setting, scene, mapping, gt_path=None, cnm_mask=None):
+    device = dense_cls_from_gs.device
     nucraft_gt = load_nucraft_gt(join(gt_path, f"{mapping['LIDAR_TOP'][f'{timestep:0>2d}']}.bin"))
-    dense_cls_nucraft = torch.tensor(sparse2dense(*nucraft_gt, *settings['nuCraft_np']), device='cuda')
+    dense_cls_nucraft = torch.tensor(sparse2dense(*nucraft_gt, *settings['nuCraft_np']), device=device)
     if cnm_mask is not None:
         dense_cls_nucraft[cnm_mask] = 17
     new_hist_nu = cal_hist(dense_cls_from_gs, dense_cls_nucraft)
