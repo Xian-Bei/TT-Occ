@@ -1,4 +1,5 @@
 # TT-Occ: Test-Time Compute for Self-Supervised Occupancy
+## Under Construction
 ![demo](assets/teaser.gif)
 **Why train a dedicated occupancy network in the era of foundation VLMs?**
 We show that a test-time occupancy framework that integreted with a conmbination of VLMs could achieve SOTA performance **without any network training or fine-tuning**.
