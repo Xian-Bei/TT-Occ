@@ -133,18 +133,16 @@ class RexOmniWrapper:
             self.model_type = "vllm"
 
         elif self.backend == "transformers":
+            import warnings
             import torch
             from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
-            # Initialize transformers model
-            self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-                self.model_path,
-                torch_dtype=kwargs.get("torch_dtype", torch.bfloat16),
-                attn_implementation=kwargs.get(
-                    "attn_implementation", "flash_attention_2"
-                ),
-                device_map=kwargs.get("device_map", "auto"),
-                trust_remote_code=kwargs.get("trust_remote_code", True),
+            attn_impl = kwargs.get("attn_implementation", "flash_attention_2")
+            common_kwargs = {
+                "torch_dtype": kwargs.get("torch_dtype", torch.bfloat16),
+                "attn_implementation": attn_impl,
+                "device_map": kwargs.get("device_map", "auto"),
+                "trust_remote_code": kwargs.get("trust_remote_code", True),
                 **{
                     k: v
                     for k, v in kwargs.items()
@@ -156,7 +154,27 @@ class RexOmniWrapper:
                         "trust_remote_code",
                     ]
                 },
-            )
+            }
+            # Initialize transformers model
+            try:
+                self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                    self.model_path,
+                    **common_kwargs,
+                )
+            except ImportError as exc:
+                # Graceful fallback for environments without flash-attn.
+                if attn_impl == "flash_attention_2":
+                    warnings.warn(
+                        "flash_attention_2 is unavailable; fallback to eager attention. "
+                        f"Original error: {exc}"
+                    )
+                    common_kwargs["attn_implementation"] = "eager"
+                    self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                        self.model_path,
+                        **common_kwargs,
+                    )
+                else:
+                    raise
 
             # Initialize processor
             self.processor = AutoProcessor.from_pretrained(
