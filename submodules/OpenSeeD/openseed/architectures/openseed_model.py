@@ -116,7 +116,7 @@ class OpenSeeD(nn.Module):
         self.train_dataset_name = train_dataset_name
         self.coco_mask_on = coco_mask_on
         self.task_switch = {'coco': coco_on, 'o365': o365_on}
-        print("self.task_switch ", self.task_switch)
+        # print("self.task_switch ", self.task_switch)
         # HACK for only two datasets for seg and det
         if coco_on:
             task = 'seg'

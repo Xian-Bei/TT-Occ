@@ -226,6 +226,12 @@ def get_own_gpu_memory(gpu=0):
 def get_inference_context(use_inference_mode=True):
     return torch.inference_mode if use_inference_mode else torch.no_grad
 
+
+def get_autocast_context():
+    use_bf16 = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
+    dtype = torch.bfloat16 if use_bf16 else torch.float16
+    return torch.cuda.amp.autocast(enabled=torch.cuda.is_available(), dtype=dtype)
+
 def _resolve_weight_path(weight_path):
     if os.path.isabs(weight_path) and os.path.exists(weight_path):
         return weight_path
@@ -298,12 +304,70 @@ def process_scene(runtime, scene_in, scene_out, save_vis=False):
                     }
                 )
                 if len(batch_inputs) == batch_size or image_idx == len(image_list) - 1:
-                    outputs = model.forward(batch_inputs)
+                    with get_autocast_context():
+                        outputs = model.forward(batch_inputs)
                     save(outputs, batch_inputs, cam_output_root, save_vis, vis_dir)
                     batch_inputs = []
                 peak = max(peak, get_own_gpu_memory())
-    torch.cuda.empty_cache()
     return {"peak_mb": peak}
+
+
+def _run_single_prediction(output):
+    pano_seg = output["panoptic_seg"][0].cpu().numpy()
+    pano_seg_info = output["panoptic_seg"][1]
+    if len(pano_seg_info) > 0:
+        pano_seg, pano_seg_info = merge_bicycle_motorcycle(pano_seg, pano_seg_info)
+        semantic_map, semantic_vis = vis(pano_seg, pano_seg_info)
+        for seg_info in pano_seg_info:
+            if not seg_info["isthing"]:
+                pano_seg[pano_seg == seg_info["id"]] = 0
+        instance_map = pano_seg.astype(np.uint8)
+    else:
+        semantic_map = np.zeros_like(pano_seg, dtype=np.uint8)
+        semantic_vis = colors[semantic_map]
+        instance_map = np.zeros_like(pano_seg, dtype=np.uint8)
+    return semantic_map.astype(np.uint8), instance_map, semantic_vis
+
+
+def process_frame_openseed(runtime, scene_in, scene_out, frame, save_vis=False, write_disk=True):
+    model = runtime["model"]
+    transform = runtime["transform"]
+    use_inference_mode = runtime["use_inference_mode"]
+    inference_ctx = get_inference_context(use_inference_mode)
+    frame_outputs = {}
+    frame_name = f"{frame:0>2d}"
+    with inference_ctx():
+        for cam in range(6):
+            image_pth = os.path.join(scene_in, f"{cam}", f"{frame_name}.jpg")
+            image_ori = Image.open(image_pth).convert("RGB")
+            width, height = image_ori.size
+            image = transform(image_ori)
+            image = np.asarray(image)
+            image_ori = np.asarray(image_ori)
+            batch_inputs = [{
+                "image": torch.from_numpy(image).permute(2, 0, 1).cuda(),
+                "height": height,
+                "width": width,
+                "image_name": frame_name,
+                "image_ori": image_ori,
+            }]
+            with get_autocast_context():
+                outputs = model.forward(batch_inputs)
+            semantic_map, instance_map, semantic_vis = _run_single_prediction(outputs[0])
+            frame_outputs[cam] = {
+                "semantic": semantic_map,
+                "instance": instance_map,
+            }
+            if write_disk:
+                cam_output_root = os.path.join(scene_out, f"openseed_{cam}")
+                os.makedirs(cam_output_root, exist_ok=True)
+                Image.fromarray(semantic_map).save(os.path.join(cam_output_root, f"{frame_name}.png"))
+                Image.fromarray(instance_map).save(os.path.join(cam_output_root, f"{frame_name}_instance.png"))
+                if save_vis:
+                    vis_dir = os.path.join(cam_output_root, "vis")
+                    os.makedirs(vis_dir, exist_ok=True)
+                    Image.fromarray(semantic_vis).save(os.path.join(vis_dir, f"{frame_name}_vis.png"))
+    return frame_outputs
 
 if __name__ == "__main__":
     opt, cmdline_args = load_opt_command(None)

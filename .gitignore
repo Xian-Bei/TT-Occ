@@ -71,6 +71,7 @@ vis/
 .history/
 
 # Ignore any folder that starts with "out"
-out*/
+results*/
 nouse/
 precomputed/
+tmp/

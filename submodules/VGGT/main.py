@@ -20,6 +20,12 @@ def get_inference_context(use_inference_mode=True):
     return torch.inference_mode if use_inference_mode else torch.no_grad
 
 
+def get_autocast_context():
+    use_bf16 = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
+    dtype = torch.bfloat16 if use_bf16 else torch.float16
+    return torch.cuda.amp.autocast(enabled=torch.cuda.is_available(), dtype=dtype)
+
+
 def create_camera_frustum(K, cam2world, image_size, scale=0.2):
     H, W = image_size
     fx, fy = K[0, 0], K[1, 1]
@@ -179,10 +185,7 @@ def estimate_scale_from_depth_alignment(pts3d, pixel_coords, depth_map, K):
 def process_frame_vggt(frame, scene_in, intrinsic_gts, prev_scale, model, depth_time=0, scale_time=0, scene_out=None, H_target=294, W_target=518):
     scene_out = scene_out or scene_in
     device = "cuda"
-    # bfloat16 is supported on Ampere GPUs (Compute Capability 8.0+) 
-    dtype = torch.bfloat16 if torch.cuda.get_device_capability()[0] >= 8 else torch.float16
-    # Initialize the model and load the pretrained weights.
-    with torch.cuda.amp.autocast(dtype=dtype):
+    with get_autocast_context():
         threshold = 0.2
         cam2world_gts = [   
                         f"{scene_in}/0/{frame:0>2d}.txt", 
@@ -291,7 +294,7 @@ def resolve_io_paths():
     return data_root, output_root
 
 def build_vggt_runtime(device="cuda"):
-    model = VGGT.from_pretrained("facebook/VGGT-1B").to(device).half()
+    model = VGGT.from_pretrained("facebook/VGGT-1B").to(device)
     return {"model": model, "device": device}
 
 def process_scene_vggt(
@@ -359,11 +362,80 @@ def process_scene_vggt(
                     if os.path.exists(png_path):
                         os.remove(png_path)
             peak = max(peak, get_own_gpu_memory())
-    torch.cuda.empty_cache()
     return {
         "peak_mb": peak,
         "depth_time_ms_per_frame": depth_time / max(1, end_frame - start_frame) * 1000,
         "scale_time_ms_per_frame": scale_time / max(1, end_frame - start_frame) * 1000,
+    }
+
+
+def _prepare_intrinsics(scene_in, H_target=294, W_target=518):
+    H_orig, W_orig = 900, 1600
+    scale_x = W_target / W_orig
+    scale_y = H_target / H_orig
+    intrinsic_gts = [
+        f"{scene_in}/0/intrinsic.txt",
+        f"{scene_in}/1/intrinsic.txt",
+        f"{scene_in}/2/intrinsic.txt",
+        f"{scene_in}/3/intrinsic.txt",
+        f"{scene_in}/4/intrinsic.txt",
+        f"{scene_in}/5/intrinsic.txt",
+    ]
+    intrinsic_gts = [np.loadtxt(intrinsic_name) for intrinsic_name in intrinsic_gts]
+    intrinsic_gts = np.stack(intrinsic_gts, axis=0).astype(np.float32)
+    intrinsic_gts[:, 0, 0] *= scale_x
+    intrinsic_gts[:, 1, 1] *= scale_y
+    intrinsic_gts[:, 0, 2] *= scale_x
+    intrinsic_gts[:, 1, 2] *= scale_y
+    return intrinsic_gts
+
+
+def process_frame_vggt_api(
+    runtime,
+    scene_in,
+    scene_out,
+    frame,
+    prev_scale,
+    use_inference_mode=True,
+    write_disk=True,
+    write_png=False,
+):
+    H_target, W_target = 294, 518
+    intrinsic_gts = _prepare_intrinsics(scene_in, H_target=H_target, W_target=W_target)
+    model = runtime["model"]
+    inference_ctx = get_inference_context(use_inference_mode)
+    with inference_ctx():
+        next_prev_scale, _, _ = process_frame_vggt(
+            frame,
+            scene_in,
+            intrinsic_gts,
+            prev_scale,
+            model,
+            depth_time=0,
+            scale_time=0,
+            scene_out=scene_out,
+            H_target=H_target,
+            W_target=W_target,
+        )
+    frame_name = f"{frame:0>2d}"
+    depths = {}
+    for cam in range(6):
+        npy_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame_name}.npy")
+        depth = np.load(npy_path)
+        depths[cam] = depth
+        if not write_disk:
+            if os.path.exists(npy_path):
+                os.remove(npy_path)
+            png_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame_name}.png")
+            if os.path.exists(png_path):
+                os.remove(png_path)
+        elif not write_png:
+            png_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame_name}.png")
+            if os.path.exists(png_path):
+                os.remove(png_path)
+    return {
+        "prev_scale": next_prev_scale,
+        "depths": depths,
     }
 
 def main():

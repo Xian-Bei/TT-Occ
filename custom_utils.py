@@ -14,7 +14,6 @@ import joblib
 from os.path import join
 from utils.camera_utils import CameraInfo
 import gc
-from utils.ray_metrics_cuda import process_one_sample, calc_rayiou, PrettyTable
 from arguments import colors, num_classes, empty_id, settings, colors_1
 from scipy.spatial import cKDTree
 
@@ -315,14 +314,12 @@ def view_sparse_voxel(view_ls, vis, path=None):
     vis.update_voxel_grid()
 
 def sparse2dense(voxel_indices, voxel_cls, min_bound, max_bound, voxel_size, fill_value=empty_id):
-    # print('sparse2dense')
     dense_size = ((max_bound-min_bound) / voxel_size + 1e-6)[0].astype(int).tolist()
     dense_cls = np.full((dense_size), fill_value, dtype=int)
     dense_cls[voxel_indices[:, 0], voxel_indices[:, 1], voxel_indices[:, 2]] = voxel_cls
     return dense_cls
 
 def sparse2dense_torch(voxel_indices, voxel_cls, min_bound, max_bound, voxel_size):
-    # print('sparse2dense_torch')
     dense_size = ((max_bound-min_bound) / voxel_size + 1e-6).int()[0].tolist()
     dense_cls = torch.full((dense_size), empty_id, device=voxel_indices.device)
     dense_cls[voxel_indices[:, 0], voxel_indices[:, 1], voxel_indices[:, 2]] = voxel_cls
@@ -368,7 +365,6 @@ def load_nucraft_gt(file):
         16, # 30->16 static.vegetation
         0, # 31->0 vehicle.ego
     ])
-    # print('load_nucraft_gt')
     data = np.fromfile(file, dtype=np.int16).reshape(-1, 4)
     voxel_indices = np.empty((data.shape[0], 3), dtype=np.int16)
     voxel_indices[:, 0], voxel_indices[:, 1], voxel_indices[:, 2] = data[:, 2], data[:, 1], data[:, 0] # X, Y, Z: 0-1023, 0-1023, 0-79
@@ -377,7 +373,6 @@ def load_nucraft_gt(file):
     return voxel_indices, voxel_cls
 
 def load_occ3d_gt(file):
-    # print('load_occ3d_gt')
     data = np.load(file)
     dense_cls = data['semantics'].astype(int)
     mask = data['mask_camera'].astype(bool)

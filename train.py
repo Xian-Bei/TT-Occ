@@ -54,28 +54,15 @@ import numpy as np
 
 import subprocess
 
-def get_own_gpu_memory(gpu=0):
-    pid = os.getpid()
-    try:
-        result = subprocess.check_output(
-            [
-                "nvidia-smi",
-                "--query-compute-apps=pid,used_memory",
-                "--format=csv,nounits,noheader"
-            ]
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        return 0
-    for line in result.decode().strip().split('\n'):
-        if not line.strip():
-            continue
-        proc_pid, mem = line.split(',')
-        if int(proc_pid.strip()) == pid:
-            return int(mem.strip())  # 单位MB
-    return 0  # 如果没查到
+def get_peak_gpu_memory_mb():
+    alloc = torch.cuda.max_memory_allocated() / (1024 ** 2)
+    reserv = torch.cuda.max_memory_reserved() / (1024 ** 2)
+    return int(max(alloc, reserv))
+
 
 def training(model_params, optimization_params, pipeline_params, debug_from):
     peak = 0
+    show_runtime_stats = bool(getattr(optimization_params, "verbose", 0))
     training_start = time.time()
     if optimization_params.iterations > 0 and not SPARSE_ADAM_AVAILABLE and optimization_params.optimizer_type == "sparse_adam":
         sys.exit(f"Trying to use sparse adam but it is not installed, please install the correct rasterizer using pip install [3dgs_accel].")
@@ -103,6 +90,8 @@ def training(model_params, optimization_params, pipeline_params, debug_from):
     try:
         progress_bar = tqdm(range(total_frame), desc="Frame Progress")
         for frame_id in progress_bar:
+            if show_runtime_stats and torch.cuda.is_available():
+                torch.cuda.reset_peak_memory_stats()
             scene.update_scene(frame_id)
             if scene.len_train_cameras > 0:
                 gaussians.training_setup(optimization_params)
@@ -171,13 +160,12 @@ def training(model_params, optimization_params, pipeline_params, debug_from):
                         gaussians.optimizer.step()
                         gaussians.optimizer.zero_grad(set_to_none=True)
             scene.training_time += time.time() - training_start
-            # print(f"Training time: {time.time() - training_start:.3f}\n-----------------------------------")
             scene.save_eval(frame_id)
             # ThreadPoolExecutor().submit(scene.fusion_save_eval, frame_id)
-            if frame_id == 0 or frame_id == total_frame - 1 or frame_id % 10 == 0:
-                mem_now = get_own_gpu_memory(gpu=0)
+            if show_runtime_stats:
+                mem_now = get_peak_gpu_memory_mb()
                 peak = max(peak, mem_now)
-            progress_bar.set_description(f"Gaussians: {gaussians.N}, Peak Mem: {peak} MB, Frame Progress: ")
+                progress_bar.set_description(f"Gaussians: {gaussians.N}, Peak Mem: {peak} MB, Frame Progress: ")
 
         progress_bar.close()
         scene.report_results()   
@@ -221,8 +209,6 @@ if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
-    print("Optimizing " + args.model_path)
-
     # Initialize system state (RNG)
     safe_state(args.quiet)
 

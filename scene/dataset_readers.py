@@ -45,6 +45,29 @@ def scene_feature_requirements(
         reqs += [f"{dynamic_mask_prefix}_{cam}" for cam in range(6)]
     return reqs
 
+
+def frame_feature_requirements(
+    frame_id,
+    source="lidar",
+    semantic_prefix="openseed",
+    depth_prefix="vggt",
+    depth_ext="npy",
+    dynamic_mask_prefix="raft",
+    dynamic_mask_suffix="_5mask.png",
+):
+    frame_name = f"{int(frame_id):0>2d}"
+    reqs = []
+    for cam in range(6):
+        reqs.append(f"{semantic_prefix}_{cam}/{frame_name}.png")
+        reqs.append(f"{semantic_prefix}_{cam}/{frame_name}_instance.png")
+    if source == "depth":
+        for cam in range(6):
+            reqs.append(f"{depth_prefix}_{cam}/{frame_name}.{depth_ext}")
+        if int(frame_id) > 0:
+            for cam in range(6):
+                reqs.append(f"{dynamic_mask_prefix}_{cam}/{frame_name}{dynamic_mask_suffix}")
+    return reqs
+
 def require_file(path, description):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Missing {description}: {path}")
@@ -56,6 +79,49 @@ def read_image(path, flags=cv2.IMREAD_COLOR, description="image"):
     if image is None:
         raise ValueError(f"Failed to read {description}: {path}")
     return image
+
+
+def _read_semantic(features_dir, sem_prefix, cam, frame, memory_features=None):
+    if memory_features is not None:
+        sem_mem = memory_features.get("semantic", {})
+        sem = sem_mem.get(cam)
+        if sem is not None:
+            return sem.copy(), None
+    semantic_path = join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}.png")
+    return read_image(semantic_path, -1, description="semantic mask"), semantic_path
+
+
+def _read_instance(features_dir, sem_prefix, cam, frame, memory_features=None):
+    if memory_features is not None:
+        ins_mem = memory_features.get("instance", {})
+        ins = ins_mem.get(cam)
+        if ins is not None:
+            return ins.copy(), None
+    instance_path = require_file(
+        join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}_instance.png"),
+        "instance mask",
+    )
+    return read_image(instance_path, cv2.IMREAD_UNCHANGED, description="instance mask"), instance_path
+
+
+def _read_depth(features_dir, depth_prefix, depth_ext, cam, frame, memory_features=None):
+    if memory_features is not None:
+        dep_mem = memory_features.get("depth", {})
+        depth = dep_mem.get(cam)
+        if depth is not None:
+            return depth.copy(), None
+    depth_path = join(features_dir, f"{depth_prefix}_{cam}/{frame:0>2d}.{depth_ext}")
+    return np.load(require_file(depth_path, "depth map")), depth_path
+
+
+def _read_dynamic_mask(features_dir, dynamic_mask_prefix, dynamic_mask_suffix, cam, frame, memory_features=None):
+    if memory_features is not None:
+        dyn_mem = memory_features.get("dynamic", {})
+        dyn = dyn_mem.get(cam)
+        if dyn is not None:
+            return dyn.copy(), None
+    dyn_mask_path = join(features_dir, f"{dynamic_mask_prefix}_{cam}/{frame:0>2d}{dynamic_mask_suffix}")
+    return read_image(dyn_mask_path, -1, description="dynamic mask"), dyn_mask_path
 
 def visualize_point_clouds(pts, ids, window_name="Point Cloud Visualization"):
     if isinstance(pts, torch.Tensor):
@@ -221,6 +287,7 @@ def load_nuscenes(
     dynamic_mask_prefix="raft",
     dynamic_mask_suffix="_5mask.png",
     feature_root="",
+    memory_features=None,
 ):
     sem_prefix = semantic_prefix
     features_dir = precomputed_scene_dir(path, feature_root)
@@ -263,8 +330,9 @@ def load_nuscenes(
             image = read_image(image_path, description="camera image")
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             width, height = image.shape[1], image.shape[0]
-            semantic_path = join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}.png")
-            semantic_image = read_image(semantic_path, -1, description="semantic mask")
+            semantic_image, semantic_path = _read_semantic(
+                features_dir, sem_prefix, cam, frame, memory_features=memory_features
+            )
             semantic_image[semantic_image == 17] = 0 # sky -> unsure
 
             cam2world = np.loadtxt(join(path, f"{name}.txt"))
@@ -280,7 +348,7 @@ def load_nuscenes(
                 depth_params=None,
                 image_path=image_path, image_name=image_name, 
                 depth_path="", 
-                semantic_path=semantic_path,
+                semantic_path=semantic_image if semantic_path is None else semantic_path,
                 width=width, height=height, is_test=False)
             train_cam_infos.append(cam_info)
             ###########################################################################
@@ -298,12 +366,10 @@ def load_nuscenes(
             if np.count_nonzero(valid_mask) > 0:
                 point_count[valid_mask] += 1
                 point_rgb_sum[valid_mask] += cv2.remap(image, uv_image[:, 0], uv_image[:, 1], interpolation=cv2.INTER_LINEAR).reshape(-1, 3)
-                instance_path = require_file(
-                    join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}_instance.png"),
-                    "instance mask",
-                )
                 labels_at_projected_pixels = cv2.remap(semantic_image, uv_image[:, 0], uv_image[:, 1], interpolation=cv2.INTER_NEAREST).reshape(-1)
-                instance_mask = read_image(instance_path, cv2.IMREAD_UNCHANGED, description="instance mask")
+                instance_mask, _ = _read_instance(
+                    features_dir, sem_prefix, cam, frame, memory_features=memory_features
+                )
                 res = cv2.remap(instance_mask, uv_image[:, 0], uv_image[:, 1], interpolation=cv2.INTER_NEAREST).reshape(-1)
                 for i in range(1, res.max()+1):
                     i_mask = (res == i)
@@ -378,8 +444,9 @@ def load_nuscenes(
         intrinsic3x3_scaled_ls = []
 
         for cam in range(6):
-            depth_path = join(features_dir, f"{depth_prefix}_{cam}/{frame:0>2d}.{depth_ext}")
-            depth = np.load(require_file(depth_path, "depth map"))
+            depth, _ = _read_depth(
+                features_dir, depth_prefix, depth_ext, cam, frame, memory_features=memory_features
+            )
             depth = cv2.resize(depth, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_NEAREST)
             height, width = depth.shape 
 
@@ -400,8 +467,9 @@ def load_nuscenes(
             T_w2c = world2cam[:3, 3]
             world2cam_ls.append(torch.tensor(world2cam, dtype=torch.float32))
             
-            semantic_path = join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}.png")
-            require_file(semantic_path, "semantic mask")
+            semantic_image_raw, semantic_path = _read_semantic(
+                features_dir, sem_prefix, cam, frame, memory_features=memory_features
+            )
             fovx = focal2fov(intrinsic3x3_ls[cam][0,0], org_width)
             fovy = focal2fov(intrinsic3x3_ls[cam][1,1], org_height)
             cam_info = CameraInfo(uid=image_id, R=R_c2w, T=T_w2c, 
@@ -409,7 +477,7 @@ def load_nuscenes(
                 depth_params=None,
                 image_path=image_path, image_name=image_name, 
                 depth_path="", 
-                semantic_path=semantic_path,
+                semantic_path=semantic_image_raw if semantic_path is None else semantic_path,
                 width=org_width, height=org_height, is_test=False)
             train_cam_infos.append(cam_info)
             scale_width = width / org_width
@@ -422,13 +490,19 @@ def load_nuscenes(
             intrinsic3x3_scaled_ls.append(intrinsic3x3_scaled)
             
             if frame > 0:
-                dyn_mask_path = join(features_dir, f"{dynamic_mask_prefix}_{cam}/{frame:0>2d}{dynamic_mask_suffix}")
-                dyn_mask = read_image(dyn_mask_path, -1, description="dynamic mask")
+                dyn_mask, _ = _read_dynamic_mask(
+                    features_dir,
+                    dynamic_mask_prefix,
+                    dynamic_mask_suffix,
+                    cam,
+                    frame,
+                    memory_features=memory_features,
+                )
                 dyn_mask = cv2.resize(dyn_mask, (width, height), interpolation=cv2.INTER_NEAREST)
                 dyn_mask = dyn_mask > 0
                 dyn_mask = torch.tensor(dyn_mask)
                 dynamic_mask_ls.append(dyn_mask)  # [N]
-            semantic_image = read_image(semantic_path, -1, description="semantic mask")
+            semantic_image = semantic_image_raw.copy()
             semantic_image = cv2.resize(semantic_image, (width, height), interpolation=cv2.INTER_NEAREST)
             valid_mask = semantic_image != 17  # shape: [H, W]
             if cam == 3: # back camera

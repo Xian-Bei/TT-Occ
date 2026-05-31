@@ -76,6 +76,7 @@ from uniception.models.prediction_heads.dpt import DPTFeature, DPTRegressionProc
 from uniception.models.prediction_heads.linear import LinearFeature
 from uniception.models.prediction_heads.mlp_head import MLPHead
 from uniception.models.prediction_heads.pose_head import PoseHead
+from uniception.models.utils.transformer_blocks import Mlp, SwiGLUFFN, SwiGLUFFNFused
 
 # Enable TF32 precision if supported (for GPU >= Ampere and PyTorch >= 1.12)
 if hasattr(torch.backends.cuda, "matmul") and hasattr(
@@ -94,6 +95,7 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         info_sharing_config: Dict,
         pred_head_config: Dict,
         geometric_input_config: Dict,
+        info_sharing_mlp_layer_str: str = None,
         fusion_norm_layer: Union[Type[nn.Module], Callable[..., nn.Module]] = partial(
             nn.LayerNorm, eps=1e-6
         ),
@@ -127,6 +129,7 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         self.info_sharing_config = info_sharing_config
         self.pred_head_config = pred_head_config
         self.geometric_input_config = geometric_input_config
+        self.info_sharing_mlp_layer_str = info_sharing_mlp_layer_str
         self.pretrained_checkpoint_path = pretrained_checkpoint_path
         self.load_specific_pretrained_submodules = load_specific_pretrained_submodules
         self.specific_pretrained_submodules = specific_pretrained_submodules
@@ -137,6 +140,7 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
             "info_sharing_config": self.info_sharing_config,
             "pred_head_config": self.pred_head_config,
             "geometric_input_config": self.geometric_input_config,
+            "info_sharing_mlp_layer_str": self.info_sharing_mlp_layer_str,
             "pretrained_checkpoint_path": self.pretrained_checkpoint_path,
             "load_specific_pretrained_submodules": self.load_specific_pretrained_submodules,
             "specific_pretrained_submodules": self.specific_pretrained_submodules,
@@ -263,6 +267,9 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         info_sharing_config["module_args"]["custom_positional_encoding"] = (
             self.custom_positional_encoding
         )
+        # HF map-anything configs may encode mlp layer as a string.
+        # Convert to callable expected by UniCeption transformer blocks.
+        self._resolve_info_sharing_mlp_layer(info_sharing_config)
 
         # Initialize Multi-View Transformer
         if self.info_sharing_return_type == "no_intermediate_features":
@@ -316,6 +323,27 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
             raise ValueError(
                 f"Invalid info_sharing_return_type: {self.info_sharing_return_type}. Valid options: ['no_intermediate_features', 'intermediate_features']"
             )
+
+    def _resolve_info_sharing_mlp_layer(self, info_sharing_config: Dict) -> None:
+        module_args = info_sharing_config.get("module_args", {})
+        mlp_layer = module_args.get("mlp_layer", None)
+        if callable(mlp_layer):
+            return
+
+        mlp_layer_map = {
+            "mlp": Mlp,
+            "swiglu": SwiGLUFFN,
+            "swiglufused": SwiGLUFFNFused,
+        }
+        requested = (self.info_sharing_mlp_layer_str or "").lower()
+        if isinstance(mlp_layer, str):
+            layer_key = mlp_layer.lower()
+            if layer_key in mlp_layer_map:
+                module_args["mlp_layer"] = mlp_layer_map[layer_key]
+                return
+            if layer_key == "dummy" and requested in mlp_layer_map:
+                module_args["mlp_layer"] = mlp_layer_map[requested]
+                return
 
     def _initialize_prediction_heads(self, pred_head_config):
         """

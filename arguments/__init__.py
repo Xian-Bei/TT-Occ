@@ -181,7 +181,7 @@ class OptimizationParams(ParamGroup):
         self.save_occ = True
         self.eval_online = 1
         self.eval_occ = False
-        self.eval_rayiou = False
+        self.verbose = 0
         self.use_fusion = False
         self.vis_occ = False
         self.multi_thread = False
@@ -197,7 +197,8 @@ class OptimizationParams(ParamGroup):
         self.dynamic_mask_suffix = "_5mask.png"
         self.feature_root = ""
         self.enable_testtime_precompute = False
-        self.precompute_force = False
+        self.precompute_use_disk = 1
+        self.precompute_write_disk = 1
         self.precompute_save_vis = False
         self.precompute_frame_step = 1
         self.precompute_prefetch = True

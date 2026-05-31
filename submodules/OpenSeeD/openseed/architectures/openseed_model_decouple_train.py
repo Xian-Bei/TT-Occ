@@ -119,7 +119,7 @@ class OpenSeeD(nn.Module):
         self.criterion_coco=criterion_coco
         self.criterion_o365=criterion_o365
 
-        print("self.task_switch ", self.task_switch)
+        # print("self.task_switch ", self.task_switch)
         # HACK for only two datasets for seg and det
         if coco_on:
             task = 'seg'

@@ -428,7 +428,7 @@ class GaussianModel:
         
         point_radius, point_offset = self.local_range_offset_full(point_radius, voxel_size)
 
-        chunk_size = 10000
+        chunk_size = 5000
         if point_offset is not None:
             xyz_ls = []
             sem_ls = []

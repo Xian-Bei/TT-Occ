@@ -57,7 +57,6 @@ def extract(scene, data_root, nusc, save_root):
     key_frame_id = 0
     sample_token = first_sample_token
     while sample_token != '':
-        # print('Processing ', sample_token)
         sample = nusc.get('sample', sample_token)
         timestamp_mapping = {}
         for sensor_name in ['LIDAR_TOP', 'CAM_FRONT', 'CAM_FRONT_LEFT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK_RIGHT', 'CAM_BACK']:

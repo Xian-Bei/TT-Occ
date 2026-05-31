@@ -24,6 +24,12 @@ DEVICE = 'cuda'
 def get_inference_context(use_inference_mode=True):
     return torch.inference_mode if use_inference_mode else torch.no_grad
 
+
+def get_autocast_context():
+    use_bf16 = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
+    dtype = torch.bfloat16 if use_bf16 else torch.float16
+    return torch.cuda.amp.autocast(enabled=torch.cuda.is_available(), dtype=dtype)
+
 def compute_ego_flow_batch(depth_0, K, cam2world_0, cam2world_1):
     """
     Compute ego-motion-induced optical flow in batch mode.
@@ -154,7 +160,21 @@ def save_vis(flow, imfile):
     flo = cv2.cvtColor(flo, cv2.COLOR_BGR2RGB)
     cv2.imwrite(imfile, flo)
 
-def process_frame_raft(frame, scene_in, model, padder, intrinsic_gts, image_prev=None, depth_prev=None, cam2world_prev=None, scene_out=None, H_target=294, W_target=518):
+def process_frame_raft(
+    frame,
+    scene_in,
+    model,
+    padder,
+    intrinsic_gts,
+    image_prev=None,
+    depth_prev=None,
+    cam2world_prev=None,
+    scene_out=None,
+    H_target=294,
+    W_target=518,
+    depth_overrides=None,
+    prev_instance_overrides=None,
+):
     scene_out = scene_out or scene_in
     image_this_ls = []
     depth_this_ls = []
@@ -162,7 +182,10 @@ def process_frame_raft(frame, scene_in, model, padder, intrinsic_gts, image_prev
     for cam in range(6):
         img_path = os.path.join(scene_in, str(cam))
         image_this = load_image(os.path.join(img_path, f"{frame:0>2d}.jpg"), W_target, H_target)
-        depth_this = torch.tensor(np.load(os.path.join(scene_out, f"vggt_{cam}/{frame:0>2d}.npy")), device=DEVICE)
+        if depth_overrides is not None and cam in depth_overrides:
+            depth_this = torch.tensor(depth_overrides[cam], device=DEVICE)
+        else:
+            depth_this = torch.tensor(np.load(os.path.join(scene_out, f"vggt_{cam}/{frame:0>2d}.npy")), device=DEVICE)
         cam2world_this = torch.tensor(np.loadtxt(os.path.join(img_path, f"{frame:0>2d}.txt")).astype(np.float32), device=DEVICE)  # (4, 4)
         image_this_ls.append(image_this)
         depth_this_ls.append(depth_this)
@@ -173,7 +196,8 @@ def process_frame_raft(frame, scene_in, model, padder, intrinsic_gts, image_prev
     cam2world_this = torch.stack(cam2world_this_ls, dim=0)
     
     if image_prev is not None:
-        _, flow_fwd = model(image_prev, image_this, iters=20, test_mode=True)
+        with get_autocast_context():
+            _, flow_fwd = model(image_prev, image_this, iters=20, test_mode=True)
         flow_fwd = padder.unpad(flow_fwd) # (6, 2, H, W)
         flow_ego_fwd = compute_ego_flow_batch(depth_prev, intrinsic_gts, cam2world_prev, cam2world_this)
 
@@ -188,9 +212,14 @@ def process_frame_raft(frame, scene_in, model, padder, intrinsic_gts, image_prev
             # save_vis(flow_dyn_fwd[cam], os.path.join(save_path, f'{frame:0>2d}_3dyn.png'))
             # cv2.imwrite(os.path.join(save_path, f'{frame:0>2d}_4mag.png'), ((flow_mag_fwd[cam] / flow_mag_fwd[cam].max()) * 65535).to(torch.uint16).cpu().numpy())
             
-            instance_path = os.path.join(scene_out, f'openseed_{cam}/{frame-1:0>2d}_instance.png')
-            if os.path.exists(instance_path):
-                instance = cv2.imread(instance_path, cv2.IMREAD_UNCHANGED)
+            instance = None
+            if prev_instance_overrides is not None and cam in prev_instance_overrides:
+                instance = prev_instance_overrides[cam]
+            else:
+                instance_path = os.path.join(scene_out, f'openseed_{cam}/{frame-1:0>2d}_instance.png')
+                if os.path.exists(instance_path):
+                    instance = cv2.imread(instance_path, cv2.IMREAD_UNCHANGED)
+            if instance is not None:
                 instance = cv2.resize(instance, (W_target, H_target), interpolation=cv2.INTER_NEAREST)
                 instance = torch.from_numpy(instance).to(DEVICE)  # (H, W)
                 flow_mag = torch.zeros_like(flow_mag_fwd[cam])
@@ -307,10 +336,86 @@ def process_scene_raft(
             for f in os.listdir(save_path):
                 if not f.endswith("_5mask.png"):
                     os.remove(os.path.join(save_path, f))
-    torch.cuda.empty_cache()
     elapsed = time.time() - start_time
     return {
         "time_ms_per_frame": elapsed / max(1, end_frame - start_frame) * 1000,
+    }
+
+
+def _prepare_intrinsics(scene_in, H_target=294, W_target=518):
+    H_orig, W_orig = 900, 1600
+    scale_x = W_target / W_orig
+    scale_y = H_target / H_orig
+    intrinsic_gts = [
+        f"{scene_in}/0/intrinsic.txt",
+        f"{scene_in}/1/intrinsic.txt",
+        f"{scene_in}/2/intrinsic.txt",
+        f"{scene_in}/3/intrinsic.txt",
+        f"{scene_in}/4/intrinsic.txt",
+        f"{scene_in}/5/intrinsic.txt",
+    ]
+    intrinsic_gts = [np.loadtxt(intrinsic_name) for intrinsic_name in intrinsic_gts]
+    intrinsic_gts = np.stack(intrinsic_gts, axis=0).astype(np.float32)
+    intrinsic_gts = torch.from_numpy(intrinsic_gts).to(DEVICE)
+    intrinsic_gts[:, 0, 0] *= scale_x
+    intrinsic_gts[:, 1, 1] *= scale_y
+    intrinsic_gts[:, 0, 2] *= scale_x
+    intrinsic_gts[:, 1, 2] *= scale_y
+    return intrinsic_gts
+
+
+def process_frame_raft_api(
+    runtime,
+    scene_in,
+    scene_out,
+    frame,
+    state=None,
+    use_inference_mode=True,
+    write_disk=True,
+    depth_overrides=None,
+    prev_instance_overrides=None,
+):
+    model = runtime["model"]
+    padder = runtime["padder"]
+    H_target, W_target = 294, 518
+    intrinsic_gts = _prepare_intrinsics(scene_in, H_target=H_target, W_target=W_target)
+    state = state or {"image_prev": None, "depth_prev": None, "cam2world_prev": None}
+    image_prev = state.get("image_prev")
+    depth_prev = state.get("depth_prev")
+    cam2world_prev = state.get("cam2world_prev")
+    inference_ctx = get_inference_context(use_inference_mode)
+    with inference_ctx():
+        image_prev, depth_prev, cam2world_prev = process_frame_raft(
+            frame,
+            scene_in,
+            model,
+            padder,
+            intrinsic_gts,
+            image_prev,
+            depth_prev,
+            cam2world_prev,
+            scene_out=scene_out,
+            H_target=H_target,
+            W_target=W_target,
+            depth_overrides=depth_overrides,
+            prev_instance_overrides=prev_instance_overrides,
+        )
+    frame_name = f"{frame:0>2d}"
+    dynamic_masks = {}
+    if frame > 0:
+        for cam in range(6):
+            mask_path = os.path.join(scene_out, f"raft_{cam}", f"{frame_name}_5mask.png")
+            if os.path.exists(mask_path):
+                dynamic_masks[cam] = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
+            if not write_disk and os.path.exists(mask_path):
+                os.remove(mask_path)
+    return {
+        "state": {
+            "image_prev": image_prev,
+            "depth_prev": depth_prev,
+            "cam2world_prev": cam2world_prev,
+        },
+        "dynamic_masks": dynamic_masks,
     }
 
 def main():

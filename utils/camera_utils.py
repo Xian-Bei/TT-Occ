@@ -16,6 +16,7 @@ from utils.graphics_utils import fov2focal
 from PIL import Image
 import cv2
 from typing import NamedTuple
+import os
 class CameraInfo(NamedTuple):
     uid: int
     R: np.array
@@ -34,17 +35,30 @@ class CameraInfo(NamedTuple):
 WARNED = True
 def loadCam(id, cam_info, resolution_scale, is_nerf_synthetic, is_test_dataset):
     image = Image.open(cam_info.image_path)
-    if cam_info.semantic_path is not None and cam_info.semantic_path != "":
-        semantic = Image.open(cam_info.semantic_path).convert("L")
+    semantic_source = cam_info.semantic_path
+    if semantic_source is not None and not (isinstance(semantic_source, str) and semantic_source == ""):
+        if isinstance(semantic_source, np.ndarray):
+            semantic = Image.fromarray(semantic_source.astype(np.uint8)).convert("L")
+        elif isinstance(semantic_source, Image.Image):
+            semantic = semantic_source.convert("L")
+        else:
+            semantic = Image.open(semantic_source).convert("L")
     else:
         semantic = None
     
     if cam_info.depth_path != "":
         try:
-            if is_nerf_synthetic:
-                invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / 512
+            if isinstance(cam_info.depth_path, np.ndarray):
+                invdepthmap = cam_info.depth_path.astype(np.float32)
+                if is_nerf_synthetic:
+                    invdepthmap = invdepthmap / 512
+                else:
+                    invdepthmap = invdepthmap / float(2**16)
             else:
-                invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / float(2**16)
+                if is_nerf_synthetic:
+                    invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / 512
+                else:
+                    invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / float(2**16)
 
         except FileNotFoundError:
             print(f"Error: The depth file at path '{cam_info.depth_path}' was not found.")
