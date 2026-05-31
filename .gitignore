@@ -63,8 +63,6 @@ coverage.xml
 *.pt
 
 # local docs / visualizations (do not publish)
-README.md
-readme.md
 vis/
 
 # Local history
