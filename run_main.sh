@@ -170,13 +170,21 @@ PRECOMPUTE_WRITE_DISK=${PRECOMPUTE_WRITE_DISK:-0}
 SEMANTIC_PREFIX=${SEMANTIC_PREFIX:-openseed}
 DEPTH_PREFIX=${DEPTH_PREFIX:-vggt}
 DYNAMIC_MASK_PREFIX=${DYNAMIC_MASK_PREFIX:-raft}
+# Runtime knobs for online precompute backends (can be overridden from CLI env).
+TTOCC_SAM_BOX_BATCH=${TTOCC_SAM_BOX_BATCH:-1}
+TTOCC_MAPANY_MEMORY_EFFICIENT=${TTOCC_MAPANY_MEMORY_EFFICIENT:-0}
 USE_FUSION=${USE_FUSION:-0}
 VERBOSE=${VERBOSE:-1}
+
+export TTOCC_SAM_BOX_BATCH
+export TTOCC_MAPANY_MEMORY_EFFICIENT
 
 model_tag() {
     case "$(echo "$1" | tr '[:upper:]' '[:lower:]')" in
         openseed) echo "OpenSeeD" ;;
+        rexomni) echo "RexOmni" ;;
         vggt) echo "VGGT" ;;
+        mapanything) echo "MapAnything" ;;
         raft) echo "RAFT" ;;
         *) echo "$1" ;;
     esac
@@ -193,7 +201,7 @@ do
         variant_dir="LIDAR_${SEMANTIC_MODEL_TAG}"
     elif [ "$variant" = "Camera" ]; then
         variant_arg="depth"
-        variant_dir="Camera_${DEPTH_MODEL_TAG}_${FLOW_MODEL_TAG}"
+        variant_dir="Camera_${SEMANTIC_MODEL_TAG}_${DEPTH_MODEL_TAG}_${FLOW_MODEL_TAG}"
     else
         echo "Unsupported variant: $variant"
         exit 1

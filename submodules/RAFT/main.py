@@ -174,6 +174,7 @@ def process_frame_raft(
     W_target=518,
     depth_overrides=None,
     prev_instance_overrides=None,
+    write_disk=True,
 ):
     scene_out = scene_out or scene_in
     image_this_ls = []
@@ -195,6 +196,7 @@ def process_frame_raft(
     depth_this = torch.stack(depth_this_ls, dim=0)
     cam2world_this = torch.stack(cam2world_this_ls, dim=0)
     
+    dynamic_masks = {}
     if image_prev is not None:
         with get_autocast_context():
             _, flow_fwd = model(image_prev, image_this, iters=20, test_mode=True)
@@ -232,12 +234,14 @@ def process_frame_raft(
                 flow_mask = flow_mag >= flow_threshold
                 flow_mask = flow_mask.cpu().numpy().astype(np.uint8) # (H, W)
                 flow_mask = cv2.dilate(flow_mask, np.ones((7, 7), np.uint8), iterations=1, dst=flow_mask)
-                cv2.imwrite(os.path.join(save_path, f'{frame:0>2d}_5mask.png'), flow_mask * 255)
+                dynamic_masks[cam] = flow_mask * 255
+                if write_disk and scene_out is not None:
+                    cv2.imwrite(os.path.join(save_path, f'{frame:0>2d}_5mask.png'), flow_mask * 255)
 
     image_prev = image_this
     depth_prev = depth_this
     cam2world_prev = cam2world_this
-    return image_prev, depth_prev, cam2world_prev
+    return image_prev, depth_prev, cam2world_prev, dynamic_masks
 
 def load_args(model_path):
     args = argparse.Namespace()
@@ -317,7 +321,7 @@ def process_scene_raft(
     inference_ctx = get_inference_context(use_inference_mode)
     with inference_ctx():
         for frame in tqdm(range(start_frame, end_frame), desc="RAFT frames", leave=False):
-            image_prev, depth_prev, cam2world_prev = process_frame_raft(
+            image_prev, depth_prev, cam2world_prev, _ = process_frame_raft(
                 frame,
                 scene_in,
                 model,
@@ -329,6 +333,7 @@ def process_scene_raft(
                 scene_out=scene_out,
                 H_target=H_target,
                 W_target=W_target,
+                write_disk=True,
             )
     if not save_debug_vis:
         for cam in range(6):
@@ -385,7 +390,7 @@ def process_frame_raft_api(
     cam2world_prev = state.get("cam2world_prev")
     inference_ctx = get_inference_context(use_inference_mode)
     with inference_ctx():
-        image_prev, depth_prev, cam2world_prev = process_frame_raft(
+        image_prev, depth_prev, cam2world_prev, dynamic_masks = process_frame_raft(
             frame,
             scene_in,
             model,
@@ -399,15 +404,19 @@ def process_frame_raft_api(
             W_target=W_target,
             depth_overrides=depth_overrides,
             prev_instance_overrides=prev_instance_overrides,
+            write_disk=write_disk,
         )
     frame_name = f"{frame:0>2d}"
-    dynamic_masks = {}
-    if frame > 0:
+    if write_disk:
+        for cam in range(6):
+            if cam not in dynamic_masks:
+                mask_path = os.path.join(scene_out, f"raft_{cam}", f"{frame_name}_5mask.png")
+                if os.path.exists(mask_path):
+                    dynamic_masks[cam] = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
+    elif frame > 0:
         for cam in range(6):
             mask_path = os.path.join(scene_out, f"raft_{cam}", f"{frame_name}_5mask.png")
             if os.path.exists(mask_path):
-                dynamic_masks[cam] = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
-            if not write_disk and os.path.exists(mask_path):
                 os.remove(mask_path)
     return {
         "state": {

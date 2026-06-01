@@ -182,7 +182,20 @@ def estimate_scale_from_depth_alignment(pts3d, pixel_coords, depth_map, K):
     return scale.item()
 
 
-def process_frame_vggt(frame, scene_in, intrinsic_gts, prev_scale, model, depth_time=0, scale_time=0, scene_out=None, H_target=294, W_target=518):
+def process_frame_vggt(
+    frame,
+    scene_in,
+    intrinsic_gts,
+    prev_scale,
+    model,
+    depth_time=0,
+    scale_time=0,
+    scene_out=None,
+    H_target=294,
+    W_target=518,
+    write_disk=True,
+    write_png=False,
+):
     scene_out = scene_out or scene_in
     device = "cuda"
     with get_autocast_context():
@@ -262,16 +275,21 @@ def process_frame_vggt(frame, scene_in, intrinsic_gts, prev_scale, model, depth_
 
     depth_vggt *= scale
     depth_vggt_cuda *= scale
+    depth_outputs = {}
     for cam in range(6):
-        save_dir = os.path.join(scene_out, f"vggt_{cam}")
         depth = depth_vggt[cam]
-        np.save(os.path.join(save_dir, f'{frame:0>2d}'), depth)
-        depth[depth > 65.5] = 65.5
-        depth_img = (depth * 1000).astype(np.uint16)
-        cv2.imwrite(os.path.join(save_dir, f'{frame:0>2d}.png'), depth_img)
+        depth_outputs[cam] = depth.copy()
+        if write_disk:
+            save_dir = os.path.join(scene_out, f"vggt_{cam}")
+            np.save(os.path.join(save_dir, f'{frame:0>2d}'), depth)
+            if write_png:
+                depth_vis = depth.copy()
+                depth_vis[depth_vis > 65.5] = 65.5
+                depth_img = (depth_vis * 1000).astype(np.uint16)
+                cv2.imwrite(os.path.join(save_dir, f'{frame:0>2d}.png'), depth_img)
     
     prev_scale = scale
-    return prev_scale, depth_time, scale_time
+    return prev_scale, depth_time, scale_time, depth_outputs
     
 def get_own_gpu_memory(gpu=0):
     pid = os.getpid()
@@ -344,7 +362,7 @@ def process_scene_vggt(
     inference_ctx = get_inference_context(use_inference_mode)
     with inference_ctx():
         for frame in tqdm(range(start_frame, end_frame), desc="VGGT frames", leave=False):
-            prev_scale, depth_time, scale_time = process_frame_vggt(
+            prev_scale, depth_time, scale_time, _ = process_frame_vggt(
                 frame,
                 scene_in,
                 intrinsic_gts,
@@ -355,12 +373,9 @@ def process_scene_vggt(
                 scene_out=scene_out,
                 H_target=H_target,
                 W_target=W_target,
+                write_disk=True,
+                write_png=write_png,
             )
-            if not write_png:
-                for cam in range(6):
-                    png_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame:0>2d}.png")
-                    if os.path.exists(png_path):
-                        os.remove(png_path)
             peak = max(peak, get_own_gpu_memory())
     return {
         "peak_mb": peak,
@@ -405,7 +420,7 @@ def process_frame_vggt_api(
     model = runtime["model"]
     inference_ctx = get_inference_context(use_inference_mode)
     with inference_ctx():
-        next_prev_scale, _, _ = process_frame_vggt(
+        next_prev_scale, _, _, depths = process_frame_vggt(
             frame,
             scene_in,
             intrinsic_gts,
@@ -416,23 +431,9 @@ def process_frame_vggt_api(
             scene_out=scene_out,
             H_target=H_target,
             W_target=W_target,
+            write_disk=write_disk,
+            write_png=write_png,
         )
-    frame_name = f"{frame:0>2d}"
-    depths = {}
-    for cam in range(6):
-        npy_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame_name}.npy")
-        depth = np.load(npy_path)
-        depths[cam] = depth
-        if not write_disk:
-            if os.path.exists(npy_path):
-                os.remove(npy_path)
-            png_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame_name}.png")
-            if os.path.exists(png_path):
-                os.remove(png_path)
-        elif not write_png:
-            png_path = os.path.join(scene_out, f"vggt_{cam}", f"{frame_name}.png")
-            if os.path.exists(png_path):
-                os.remove(png_path)
     return {
         "prev_scale": next_prev_scale,
         "depths": depths,

@@ -178,6 +178,36 @@ def detect_objects_with_rex(
     return result
 
 
+def detect_objects_with_rex_batch(
+    rex_model: RexOmniWrapper,
+    images: List[Image.Image],
+    categories: List[str],
+    task: str = "detection",
+) -> List[Dict]:
+    """
+    Detect objects with one batched Rex-Omni call.
+
+    Args:
+        rex_model: Rex-Omni wrapper
+        images: Input images
+        categories: List of object categories to detect
+        task: Task type (detection, referring, etc.)
+
+    Returns:
+        List of successful detection results aligned with `images`.
+    """
+    results = rex_model.inference(images=images, task=task, categories=categories)
+    validated = []
+    for idx, result in enumerate(results):
+        if not result["success"]:
+            raise RuntimeError(
+                f"Rex-Omni inference failed on batch item {idx}: "
+                f"{result.get('error', 'Unknown error')}"
+            )
+        validated.append(result)
+    return validated
+
+
 def extract_boxes_from_predictions(predictions: Dict) -> List[np.ndarray]:
     """
     Extract bounding boxes from Rex-Omni predictions
@@ -233,6 +263,38 @@ def generate_masks_with_sam(
 
     # print(f"✅ Generated {len(all_masks)} masks!")
     return all_masks, all_scores
+
+
+def generate_masks_with_sam_box_batch(
+    sam_predictor, image: np.ndarray, boxes: List[np.ndarray]
+) -> Tuple[List[np.ndarray], List[float]]:
+    """
+    Generate masks using one SAM box-batch call.
+
+    Returns masks/scores aligned to input `boxes`, matching the API shape of
+    `generate_masks_with_sam`.
+    """
+    if len(boxes) == 0:
+        return [], []
+
+    sam_predictor.set_image(image)
+    boxes_np = np.asarray(boxes, dtype=np.float32)
+    sam_device = getattr(sam_predictor, "device", None)
+    if sam_device is None:
+        sam_device = next(sam_predictor.model.parameters()).device
+    boxes_torch = torch.as_tensor(boxes_np, device=sam_device)
+    transformed_boxes = sam_predictor.transform.apply_boxes_torch(
+        boxes_torch, image.shape[:2]
+    )
+    masks, scores, _ = sam_predictor.predict_torch(
+        point_coords=None,
+        point_labels=None,
+        boxes=transformed_boxes,
+        multimask_output=False,
+    )
+    masks_np = masks[:, 0].detach().cpu().numpy().astype(bool)
+    scores_np = scores[:, 0].detach().cpu().numpy()
+    return [m for m in masks_np], [float(s) for s in scores_np]
 
 
 def visualize_results(

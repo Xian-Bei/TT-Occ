@@ -29,7 +29,23 @@ conda activate ttocc
 bash submodules/install_and_download.sh
 ```
 
-`install_and_download.sh` (run from the repo root, with `ttocc` activated) will:
+`install_and_download.sh` (run from the repo root, with `ttocc` activated) includes all install and checkpoint download steps required by TT-Occ (OpenSeeD / Rex-Omni / VGGT / MapAnything / RAFT / 3DGS CUDA extensions).
+
+## ✅ Currently Supported Online Models
+
+TT-Occ currently supports the following online test-time providers:
+
+- Semantic models: `openseed`, `rexomni`
+- Depth models: `vggt`, `mapanything`
+- Dynamic mask model: `raft`
+
+Selection is controlled by environment variables in `run_main.sh`:
+
+- `SEMANTIC_PREFIX` (`openseed` by default)
+- `DEPTH_PREFIX` (`vggt` by default)
+- `DYNAMIC_MASK_PREFIX` (`raft` by default)
+
+`install_and_download.sh` will:
 
 - Clone `simple-knn` if missing, then install **3DGS CUDA extensions** (`simple-knn`, `diff-gaussian-rasterization`, `diff-gaussian-rasterization_semantic`). Do **not** use `pip install simple-knn` from PyPI — that is a different package.
 - `pip install -e` **VGGT** and **RAFT**
@@ -85,19 +101,14 @@ conda activate ttocc
 bash run_main.sh
 ```
 
-By default `run_main.sh` enables **mIoU** (`EVAL_OCC=1`) and writes per-scene `result.json` under `out-main-Occ3D/<variant>/<scene>/`. Optional **RayIoU** (Occ3D + nuCraft):
-
-```bash
-EVAL_RAYIOU=1 bash run_main.sh
-```
+By default `run_main.sh` enables **mIoU** (`EVAL_OCC=1`) and writes per-scene `result.json` under `out-main-Occ3D/<variant>/<scene>/`.
 
 Manual flags for `train.py`:
 
 - `--use_fusion` — enable E-style semantic/radiometric fusion (default off, D-equivalent)
 - `--eval_occ --occ3d_path ... --nucraft_path ...` — mIoU vs saved `Occ/*.pth`
-- `--eval_rayiou` — RayIoU via `utils/occ_eval.py` (nuCraft pred/GT assignment corrected)
 
-Offline aggregation (same logic as train): `python summarymiou.py`, `python summary_ray_nucraft.py`, `python summary.py`.
+Offline aggregation (same logic as train): `python summarymiou.py`, `python summary.py`.
 
 ### 🎨 Visualization
 
@@ -121,7 +132,7 @@ For advanced visualization commands, refer to `custom_utils/VoxelGridVisualizer`
 
 ## 📌 Acknowledgements
 
-This project builds upon the excellent codebase of [3DGS](https://github.com/graphdeco-inria/gaussian-splatting) and powerful VLMs including [OpenSeeD](https://github.com/IDEA-Research/OpenSeeD), [VGGT](https://github.com/facebookresearch/vggt), [RAFT](https://github.com/princeton-vl/RAFT), etc.
+This project builds upon the excellent codebase of [3DGS](https://github.com/graphdeco-inria/gaussian-splatting) and powerful VLMs including [OpenSeeD](https://github.com/IDEA-Research/OpenSeeD), [Rex-Omni](https://github.com/IDEA-Research/Rex-Omni), [VGGT](https://github.com/facebookresearch/vggt), [MapAnything](https://github.com/facebookresearch/map-anything), [RAFT](https://github.com/princeton-vl/RAFT), and [TT-Occ](./).
 We deeply appreciate their creators' efforts and your interest in TT-Occ!
 
 ## 📖 Citation

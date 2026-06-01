@@ -382,6 +382,54 @@ def run_mapanything(
         all_masks,
     )
 
+
+def run_mapanything_depth_only(
+    model,
+    images,
+    poses,
+    intrinsics,
+    image_normalization_type="dinov2",
+    memory_efficient_inference=False,
+    use_amp=True,
+    amp_dtype="bf16",
+):
+    """
+    Run MapAnything and only return depth_z maps for each input view.
+    This avoids unnecessary postprocessing used by COLMAP/export workflows.
+    """
+    assert len(images.shape) == 4
+    assert images.shape[1] == 3
+    num_cams = 6
+    assert images.shape[0] % num_cams == 0, "Number of images must be multiple of number of cameras"
+
+    views = []
+    for view_idx in range(images.shape[0]):
+        cam_idx = view_idx % num_cams
+        views.append(
+            {
+                "img": images[view_idx][None],
+                "data_norm_type": [image_normalization_type],
+                "intrinsics": intrinsics[cam_idx][None],
+                "camera_poses": poses[view_idx][None],
+            }
+        )
+
+    predictions = model.infer(
+        views,
+        memory_efficient_inference=memory_efficient_inference,
+        use_amp=use_amp,
+        amp_dtype=amp_dtype,
+        apply_mask=False,
+        mask_edges=False,
+    )
+
+    depth_maps = []
+    for pred in predictions:
+        depthmap_torch = pred["depth_z"][0].squeeze(-1)
+        depth_maps.append(depthmap_torch.float().cpu().numpy())
+
+    return np.stack(depth_maps)
+
 def load_and_preprocess_images(image_path_list, mode="crop", semantic=False):
     """
     A quick start function to load and preprocess images for model input.

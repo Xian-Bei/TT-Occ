@@ -853,7 +853,7 @@ class RexOmniWrapper:
         }
 
         # Generate
-        with torch.no_grad():
+        with torch.inference_mode():
             generated_ids = self.model.generate(**inputs, **generation_kwargs)
 
         generation_time = time.time() - generation_start
@@ -917,7 +917,7 @@ class RexOmniWrapper:
         }
 
         # Generate for entire batch
-        with torch.no_grad():
+        with torch.inference_mode():
             generated_ids = self.model.generate(**inputs, **generation_kwargs)
 
         generation_time = time.time() - generation_start
