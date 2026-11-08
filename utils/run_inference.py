@@ -106,6 +106,7 @@ def main():
     abstention = {v: bool(args.fusion and (v == 'lidar' if args.fusion_unknown_abstention is None
                                          else args.fusion_unknown_abstention)) for v in args.variants}
     recipe = {'schema': 2, 'data_root': str(args.data_root), 'gt_path': str(args.gt_path),
+              'evaluation_metric': 'corrected',
               'occ_setting': args.occ_setting, 'semantic_prefix': args.semantic_prefix,
               'depth_prefix': args.depth_prefix, 'map_model': args.map_model,
               'map_revision': args.map_revision, 'rex_model': args.rex_model, 'rex_revision': args.rex_revision,

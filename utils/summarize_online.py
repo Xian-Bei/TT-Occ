@@ -15,7 +15,8 @@ from custom_utils import cal_iou_miou
 from arguments import semantic_list
 
 
-def histogram_metrics(hist, keep_pred0=False):
+def histogram_metrics(hist, keep_pred0=True):
+    """Corrected metrics by default; False requests deprecated Paper metrics."""
     iou, miou, classes = cal_iou_miou(hist, keep_pred0=keep_pred0)
     return {
         'miou_percent': miou.item() * 100,
@@ -50,7 +51,10 @@ def summarize_online(predictions, scenes=None, histogram_file='hist.pth'):
         torch.save(total.cpu(), model / summary_name)
         final[model.name] = {
             'N': len(names), 'frames': frames, **histogram_metrics(total),
+            'evaluation_metric': 'corrected',
             'metrics_keep_pred0': histogram_metrics(total, keep_pred0=True),
+            # DEPRECATED: historical Paper comparison, never the main metric.
+            'metrics_paper_deprecated': histogram_metrics(total, keep_pred0=False),
         }
     return final
 

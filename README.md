@@ -68,7 +68,7 @@ Results are saved under `OUTPUT_ROOT`; the aggregate metrics are in `metrics_ful
 
 ## 📊 Results
 
-Each configuration covers **150 scenes and 6019 frames**. Both columns report mIoU: (Paper) deletes prediction column 0, while ([Corrected](https://github.com/Xian-Bei/TT-Occ/issues/3)) retains it. Scene confusion matrices are summed before calculating the metrics.
+Each configuration covers **150 scenes and 6019 frames**. Evaluation defaults to [Corrected](https://github.com/Xian-Bei/TT-Occ/issues/3), which retains prediction column 0. Paper deletes that column and is deprecated, retained only for comparison. Scene confusion matrices are summed before calculating the metrics.
 
 ### Occ3D
 

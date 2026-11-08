@@ -392,7 +392,15 @@ def cal_hist(pred_occ, gt_occ):
             minlength=(num_classes+1)**2
         ).reshape((num_classes+1), (num_classes+1))
     
-def cal_iou_miou(hist, keep_pred0=False):
+def cal_iou_miou(hist, keep_pred0=True):
+    """Compute Corrected IoU/mIoU, retaining prediction column 0 by default.
+
+    Predictions of 0 for evaluated GT classes count as false negatives.
+    GT classes 0/12 and prediction class 12 remain excluded as before.
+    ``keep_pred0=False`` selects the DEPRECATED Paper metric, which deletes
+    prediction column 0 and is retained only for historical comparisons.
+    See https://github.com/Xian-Bei/TT-Occ/issues/3.
+    """
     # not consider 0 (noise) and 12 (other_flat) class
     if isinstance(hist, torch.Tensor):
         hist = torch.cat((hist[1:12], hist[13:]), dim=0)  
@@ -408,6 +416,8 @@ def cal_iou_miou(hist, keep_pred0=False):
             occupied_fn = hist[:-1, 0].sum() + hist[:-1, -1].sum()
             iou = occupied_tp / (occupied_tp + occupied_fp + occupied_fn)
             return iou, torch.nanmean(mious), mious
+        # DEPRECATED (Paper): deleting prediction column 0 hides false
+        # negatives. Use only explicitly via keep_pred0=False for comparison.
         hist = torch.cat((hist[:, 1:12], hist[:, 13:]), dim=1)
         n = hist.shape[0]
 
@@ -425,8 +435,18 @@ def cal_iou_miou(hist, keep_pred0=False):
 
         miou = torch.nanmean(mious)
     else:
-        ipdb.set_trace()
         hist = np.delete(hist, [0, 12], axis=0)
+        if keep_pred0:
+            hist = np.delete(hist, 12, axis=1)
+            intersection = np.diag(hist[:, 1:])
+            mious = intersection / (hist.sum(axis=1) + hist[:, 1:].sum(axis=0) - intersection)
+            occupied_tp = hist[:-1, 1:-1].sum()
+            occupied_fp = hist[-1, 1:-1].sum()
+            occupied_fn = hist[:-1, 0].sum() + hist[:-1, -1].sum()
+            iou = occupied_tp / (occupied_tp + occupied_fp + occupied_fn)
+            mious = mious[:-1]
+            return iou, np.nanmean(mious), mious
+        # DEPRECATED (Paper): retained only for keep_pred0=False comparisons.
         hist = np.delete(hist, [0, 12], axis=1)
         
         n = hist.shape[0]

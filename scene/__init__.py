@@ -279,6 +279,7 @@ class Scene:
         self.wait_for_saves()
         self.result = {
             "frames": self.total_frame,
+            "evaluation_metric": "corrected",
             "K": self.opt.K,
             "fusion": self.opt.use_fusion,
             "fusion_unknown_abstention": bool(self.opt.use_fusion and self.opt.fusion_unknown_abstention),
@@ -324,15 +325,18 @@ class Scene:
             if self.opt.eval_both_datasets:
                 torch.save(self.hist_nucraft.cpu(), join(self.model_path, "hist_nucraft.pth"))
             self.result['metrics_keep_pred0'] = {}
+            # DEPRECATED: retain Paper results only as an explicit comparison.
+            self.result['metrics_paper_deprecated'] = {}
             histograms = {self.opt.occ_setting: histogram}
             if self.opt.eval_both_datasets:
                 histograms['nuCraft'] = self.hist_nucraft
             for dataset, hist in histograms.items():
-                iou_keep, miou_keep, classes_keep = cal_iou_miou(hist, keep_pred0=True)
-                self.result['metrics_keep_pred0'][dataset] = {
-                    'miou': float(miou_keep), 'iou': float(iou_keep),
-                    'mious': {name: float(value) for name, value in zip(semantic_list, classes_keep)},
-                }
+                for key, keep_pred0 in [('metrics_keep_pred0', True), ('metrics_paper_deprecated', False)]:
+                    iou, miou, classes = cal_iou_miou(hist, keep_pred0=keep_pred0)
+                    self.result[key][dataset] = {
+                        'miou': float(miou), 'iou': float(iou),
+                        'mious': {name: float(value) for name, value in zip(semantic_list, classes)},
+                    }
             file_path = join(self.model_path, "result.json")
             json_data = json.dumps(self.result, default=custom_encoder, indent=4)
             with open(file_path, "w") as f:
