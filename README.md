@@ -2,7 +2,6 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2503.08485-b31b1b.svg)](https://arxiv.org/abs/2503.08485)
 
-## Under Construction
 ![demo](assets/teaser.gif)
 **Why train a dedicated occupancy network in the era of foundation VLMs?**
 We show that a test-time occupancy framework that integreted with a conmbination of VLMs could achieve SOTA performance **without any network training or fine-tuning**.
@@ -69,11 +68,11 @@ Results are saved under `OUTPUT_ROOT`; the aggregate metrics are in `metrics_ful
 
 ## 📊 Results
 
-Each configuration covers **150 scenes and 6019 frames**. Both columns report mIoU: (Paper) deletes prediction column 0, while (corrected) retains it. Scene confusion matrices are summed before calculating the metrics.
+Each configuration covers **150 scenes and 6019 frames**. Both columns report mIoU: (Paper) deletes prediction column 0, while ([Corrected](https://github.com/Xian-Bei/TT-Occ/issues/3)) retains it. Scene confusion matrices are summed before calculating the metrics.
 
 ### Occ3D
 
-| Configuration | mIoU (Paper) | mIoU (corrected) |
+| Configuration | mIoU (Paper) | mIoU ([Corrected](https://github.com/Xian-Bei/TT-Occ/issues/3)) |
 |---|---:|---:|
 | LiDAR + Rex-Omni/SAM | 27.4% | 25.2% |
 | LiDAR + OpenSeeD | 22.0% | 21.9% |
@@ -82,14 +81,12 @@ Each configuration covers **150 scenes and 6019 frames**. Both columns report mI
 
 ### nuCraft
 
-| Configuration | mIoU (Paper) | mIoU (corrected) |
+| Configuration | mIoU (Paper) | mIoU ([Corrected](https://github.com/Xian-Bei/TT-Occ/issues/3)) |
 |---|---:|---:|
 | LiDAR + Rex-Omni/SAM | 11.6% | 11.0% |
 | LiDAR + OpenSeeD | 9.6% | 9.6% |
 | Camera + Rex-Omni/SAM + MapAnything | 7.0% | 6.7% |
 | Camera + OpenSeeD + VGGT | 4.1% | 4.1% |
-
-See [RESULTS.csv](RESULTS.csv) for full precision values.
 
 ## 🎨 Visualization
 
