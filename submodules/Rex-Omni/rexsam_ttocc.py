@@ -75,6 +75,32 @@ stuff_dic = {
     'traffic cone': 8,
 }
 INDEX_MAPPING = {**thing_dic, **stuff_dic}
+# nuScenes semantic IDs for thing classes only (aligned with OpenSeeD instance export).
+THING_INSTANCE_IDS = set(thing_dic.values())
+
+
+def build_semantic_colormap_vis(semantic_map: np.ndarray) -> np.ndarray:
+    """Colormap visualization aligned with offline rex_sam_pipeline (_vis.png)."""
+    idx = np.clip(semantic_map.astype(np.int64), 0, len(colors) - 1)
+    return colors[idx]
+
+
+def save_semantic_vis_png(semantic_map: np.ndarray, save_path: str) -> None:
+    vis = build_semantic_colormap_vis(semantic_map)
+    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(vis).save(save_path)
+
+
+def save_instance_vis_png(instance_map: np.ndarray, save_path: str) -> None:
+    """Distinct per-instance colors for debugging (raw IDs are low-contrast)."""
+    repo_root = Path(__file__).resolve().parents[2]
+    import sys
+
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from utils.precompute_vis import save_instance_vis_png as _save
+
+    _save(instance_map, save_path)
 
 
 def setup_sam_model(
@@ -531,16 +557,18 @@ def rex_sam_pipeline(
 
                 mask_idx = 0
                 sem_masks = np.zeros_like(masks[0], dtype=np.uint8)
-                sem_vis = np.zeros((sem_masks.shape[0], sem_masks.shape[1], 3), dtype=np.uint8)
-                
                 for category, detections in predictions.items():
                     for detection in detections:
                         if detection["type"] == "box" and mask_idx < len(masks):
                             sem_masks[masks[mask_idx]] = INDEX_MAPPING[category]
-                            sem_vis[masks[mask_idx]] = colors[INDEX_MAPPING[category]]
                             mask_idx += 1
 
-                Image.fromarray(sem_vis).save(os.path.join(OUTPUT_DIR,f"{img_name.split('.')[0]}_vis.png"))
+                vis_dir = OUTPUT_DIR / "vis"
+                vis_dir.mkdir(parents=True, exist_ok=True)
+                save_semantic_vis_png(
+                    sem_masks,
+                    str(vis_dir / f"{img_name.split('.')[0]}_vis.png"),
+                )
                 Image.fromarray(sem_masks, mode='L').save(os.path.join(OUTPUT_DIR, f"{img_name.split('.')[0]}.png"))
     end = time.time()
     print(f"✅ Total pipeline time: {end - start:.2f} seconds")

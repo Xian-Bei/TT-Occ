@@ -1,4 +1,7 @@
 # TT-Occ: Test-Time Compute for Self-Supervised Occupancy
+
+[![arXiv](https://img.shields.io/badge/arXiv-2609.36842-b31b1b.svg)](https://arxiv.org/abs/2609.36842)
+
 ## Under Construction
 ![demo](assets/teaser.gif)
 **Why train a dedicated occupancy network in the era of foundation VLMs?**
@@ -11,12 +14,13 @@ We show that a test-time occupancy framework that integreted with a conmbination
 1. Download the nuScenes dataset from [nuScenes.org](https://www.nuscenes.org/download).
 2. Extract nuScenes data into a readable format:
    ```bash
-   python extract_nuscenes.py  # Ensure you set your dataset path inside this script.
+   python extract_nuscenes.py --data-root /path/to/nuscenes \
+       --save-root /path/to/new_extracted_nuscenes_val --split val
    ```
 3. Download ground-truth occupancy labels:
    * Occ3D-nuScenes GT: [Google Drive](https://drive.google.com/drive/folders/1Xarc91cNCNN3h8Vum-REbI-f0UlSf5Fc)
    * nuCraft GT: [nuCraft GitHub](https://github.com/V2AI/nuCraft_API?tab=readme-ov-file)
-4. Update `data_root` of all scripts in ``.
+4. Supply data, GT and output paths through the runtime environment variables below.
 
 ## 🌱 Environment Setup
 For the external repositories used in this project, we provide minimal versions of their codebases under the `submodules` directory (with their original licenses retained; please respect and comply with their terms). These have been packaged under a unified conda environment, so you do not need to clone each dependency separately.
@@ -41,35 +45,61 @@ TT-Occ currently supports the following online test-time providers:
 
 Selection is controlled by environment variables in `run_main.sh`:
 
-- `SEMANTIC_PREFIX` (`openseed` by default)
-- `DEPTH_PREFIX` (`vggt` by default)
-- `DYNAMIC_MASK_PREFIX` (`raft` by default)
+- `SEMANTIC_PREFIX` (`rexomni` by default: Rex-Omni + SAM)
+- `DEPTH_PREFIX` (`mapanything` by default)
+- Camera dynamic masks use RAFT.
 
 ## 🚀 Running TT-Occ
 
-Evaluate on the complete 150-scene test split:
+Set the extracted nuScenes data, GT, dataset and output paths:
 
 ```bash
 conda activate ttocc
-bash run_main.sh
+DATA_ROOT=/path/to/new_extracted_nuscenes_val \
+GT_PATH=/path/to/Occ3D_nuscenes/gts \
+OCC_SETTING=Occ3D \
+OUTPUT_ROOT=/path/to/run-output bash run_main.sh
 ```
 
-By default `run_main.sh` enables **mIoU** (`EVAL_OCC=1`) and writes per-scene `result.json` under `out-main-Occ3D/<variant>/<scene>/`.
+For **nuCraft**, use `OCC_SETTING=nuCraft` and `GT_PATH=/path/to/nuCraft/occupancy@0.2`. Both datasets use the same extracted nuScenes input.
 
-Manual flags for `train.py`:
+By default, the script runs both LiDAR and per-frame Camera. Set `VARIANTS=lidar` or `VARIANTS=camera_frame` to run one mode. Model selection is described above.
 
-- `--use_fusion` — enable E-style semantic/radiometric fusion (default off, D-equivalent)
-- `--eval_occ --occ3d_path ... --nucraft_path ...` — mIoU vs saved `Occ/*.pth`
+Results are saved under `OUTPUT_ROOT`; the aggregate metrics are in `metrics_full_precision.json`. Reuse the same output directory to resume an interrupted run with the same code and configuration.
 
-Offline aggregation (same logic as train): `python summarymiou.py`, `python summary.py`.
+## 📊 Results
 
-### 🎨 Visualization
+Each configuration covers **150 scenes and 6019 frames**. Both columns report mIoU: (Paper) deletes prediction column 0, while (corrected) retains it. Scene confusion matrices are summed before calculating the metrics.
+
+### Occ3D
+
+| Configuration | mIoU (Paper) | mIoU (corrected) |
+|---|---:|---:|
+| LiDAR + Rex-Omni/SAM | 27.4% | 25.2% |
+| LiDAR + OpenSeeD | 22.0% | 21.9% |
+| Camera + Rex-Omni/SAM + MapAnything | 19.0% | 17.1% |
+| Camera + OpenSeeD + VGGT | 12.8% | 12.8% |
+
+### nuCraft
+
+| Configuration | mIoU (Paper) | mIoU (corrected) |
+|---|---:|---:|
+| LiDAR + Rex-Omni/SAM | 11.6% | 11.0% |
+| LiDAR + OpenSeeD | 9.6% | 9.6% |
+| Camera + Rex-Omni/SAM + MapAnything | 7.0% | 6.7% |
+| Camera + OpenSeeD + VGGT | 4.1% | 4.1% |
+
+See [RESULTS.csv](RESULTS.csv) for full precision values.
+
+## 🎨 Visualization
 
 We provide a simple occupancy visualizer based on **Open3D**.
 To visualize occupancy predictions, run:
 
 ```bash
-python vis.py  # Make sure the dataset path is correctly set.
+python vis.py --data_path /path/to/new_extracted_nuscenes_val \
+    --gt_path /path/to/Occ3D_nuscenes/gts --dataset Occ3D \
+    --model-paths /path/to/run-output/predictions/LIDAR_rexomni
 ```
 
 Example visualization outputs:
@@ -85,7 +115,7 @@ For advanced visualization commands, refer to `custom_utils/VoxelGridVisualizer`
 
 ## 📌 Acknowledgements
 
-This project builds upon the excellent codebase of [3DGS](https://github.com/graphdeco-inria/gaussian-splatting) and powerful VLMs including [OpenSeeD](https://github.com/IDEA-Research/OpenSeeD), [Rex-Omni](https://github.com/IDEA-Research/Rex-Omni), [VGGT](https://github.com/facebookresearch/vggt), [MapAnything](https://github.com/facebookresearch/map-anything), [RAFT](https://github.com/princeton-vl/RAFT), and [TT-Occ](./).
+This project builds upon the excellent codebase of [3DGS](https://github.com/graphdeco-inria/gaussian-splatting) and powerful VLMs including [OpenSeeD](https://github.com/IDEA-Research/OpenSeeD), [Rex-Omni](https://github.com/IDEA-Research/Rex-Omni), [VGGT](https://github.com/facebookresearch/vggt), [MapAnything](https://github.com/facebookresearch/map-anything), and [RAFT](https://github.com/princeton-vl/RAFT).
 We deeply appreciate their creators' efforts and your interest in TT-Occ!
 
 ## 📖 Citation

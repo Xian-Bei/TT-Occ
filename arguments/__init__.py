@@ -181,31 +181,67 @@ class OptimizationParams(ParamGroup):
         self.save_occ = True
         self.eval_online = 1
         self.eval_occ = False
+        self.eval_both_datasets = False
+        self.histogram_only = False
         self.verbose = 0
         self.use_fusion = False
+        self.fusion_unknown_abstention = -1  # auto: LiDAR on, Camera off
         self.vis_occ = False
         self.multi_thread = False
         self.iterations = 0
         self.display_iter = 1
         self.semantic_weight = 0
-        self.K = 20
+        self.K = 10  # shared default for LiDAR and Camera
         self.variant = 'lidar'
         self.semantic_prefix = "openseed"
+        self.openseed_text_is_eval = 1
+        self.openseed_semantic_output = "sem_seg"
+        self.openseed_instance_mode = "panoptic"
         self.depth_prefix = "vggt"
         self.depth_ext = "npy"
         self.dynamic_mask_prefix = "raft"
         self.dynamic_mask_suffix = "_5mask.png"
+        self.max_frames = 0
+        self.mapanything_scope = "frame"
+        self.mapanything_model_path = "facebook/map-anything"
+        self.mapanything_revision = "a1d87e9086706fb9974f3be5a3e3a0ca5401c5aa"
+        self.mapanything_apply_mask = 1
+        self.mapanything_mask_edges = 0
+        self.rexomni_model_path = "IDEA-Research/Rex-Omni"
+        self.rexomni_revision = "0e5693d24657f6c0e091008dd6809bb1bd28988c"
         self.feature_root = ""
         self.enable_testtime_precompute = False
+        self.precompute_cache_only = False
         self.precompute_use_disk = 1
         self.precompute_write_disk = 1
-        self.precompute_save_vis = False
+        self.precompute_save_vis = 0
         self.precompute_frame_step = 1
         self.precompute_prefetch = True
         self.precompute_inference_mode = True
         
         super().__init__(parser, "Optimization Parameters")
         
+    def extract(self, args):
+        values = super().extract(args)
+        if values.openseed_text_is_eval not in (0, 1):
+            raise ValueError("openseed_text_is_eval must be 0 or 1")
+        if values.openseed_semantic_output not in ("panoptic", "sem_seg"):
+            raise ValueError("Invalid openseed_semantic_output")
+        if values.openseed_instance_mode not in ("panoptic", "none"):
+            raise ValueError("Invalid openseed_instance_mode")
+        if values.K <= 0:
+            values.K = 10
+        if values.fusion_unknown_abstention not in (-1, 0, 1):
+            raise ValueError("fusion_unknown_abstention must be -1 (auto), 0 or 1")
+        if values.fusion_unknown_abstention == -1:
+            values.fusion_unknown_abstention = int(values.variant == "lidar")
+        if values.eval_both_datasets and (
+            values.occ_setting != "Occ3D" or not values.eval_occ
+            or not values.eval_online or not values.occ3d_path or not values.nucraft_path
+        ):
+            raise ValueError("eval_both_datasets requires online Occ3D evaluation and both GT paths")
+        return values
+
 
 def get_combined_args(parser : ArgumentParser):
     cmdlne_string = sys.argv[1:]

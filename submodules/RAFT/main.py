@@ -18,6 +18,7 @@ from raft.utils import flow_viz
 from raft.utils.utils import InputPadder
 import torch.nn.functional as F
 from tqdm import tqdm
+from utils.inference_precision import precision_stage
 
 DEVICE = 'cuda'
 
@@ -30,6 +31,7 @@ def get_autocast_context():
     dtype = torch.bfloat16 if use_bf16 else torch.float16
     return torch.cuda.amp.autocast(enabled=torch.cuda.is_available(), dtype=dtype)
 
+@precision_stage(matmul_tf32=False, autocast=False)
 def compute_ego_flow_batch(depth_0, K, cam2world_0, cam2world_1):
     """
     Compute ego-motion-induced optical flow in batch mode.
@@ -174,7 +176,10 @@ def process_frame_raft(
     W_target=518,
     depth_overrides=None,
     prev_instance_overrides=None,
-    write_disk=True,
+    write_disk=False,
+    save_vis=False,
+    dynamic_mask_prefix="raft",
+    dynamic_mask_suffix="_5mask.png",
 ):
     scene_out = scene_out or scene_in
     image_this_ls = []
@@ -208,7 +213,7 @@ def process_frame_raft(
         flow_mag_fwd = torch.norm(flow_dyn_fwd, dim=1)  # (6, H, W)
 
         for cam in range(6):
-            save_path = os.path.join(scene_out, f'raft_{cam}')
+            save_path = os.path.join(scene_out, f'{dynamic_mask_prefix}_{cam}')
             # save_vis(flow_fwd[cam], os.path.join(save_path, f'{frame:0>2d}_1opt.png'))
             # save_vis(flow_ego_fwd[cam], os.path.join(save_path, f'{frame:0>2d}_2ego.png'))
             # save_vis(flow_dyn_fwd[cam], os.path.join(save_path, f'{frame:0>2d}_3dyn.png'))
@@ -235,8 +240,18 @@ def process_frame_raft(
                 flow_mask = flow_mask.cpu().numpy().astype(np.uint8) # (H, W)
                 flow_mask = cv2.dilate(flow_mask, np.ones((7, 7), np.uint8), iterations=1, dst=flow_mask)
                 dynamic_masks[cam] = flow_mask * 255
+                if save_vis and scene_out is not None:
+                    vis_dir = os.path.join(scene_out, f"{dynamic_mask_prefix}_{cam}", "vis")
+                    os.makedirs(vis_dir, exist_ok=True)
+                    cv2.imwrite(
+                        os.path.join(vis_dir, f"{frame:0>2d}_dyn_vis.png"),
+                        flow_mask * 255,
+                    )
                 if write_disk and scene_out is not None:
-                    cv2.imwrite(os.path.join(save_path, f'{frame:0>2d}_5mask.png'), flow_mask * 255)
+                    os.makedirs(save_path, exist_ok=True)
+                    mask_path = os.path.join(save_path, f'{frame:0>2d}{dynamic_mask_suffix}')
+                    if not cv2.imwrite(mask_path, flow_mask * 255):
+                        raise IOError(f'Failed to save dynamic mask: {mask_path}')
 
     image_prev = image_this
     depth_prev = depth_this
@@ -376,7 +391,10 @@ def process_frame_raft_api(
     frame,
     state=None,
     use_inference_mode=True,
-    write_disk=True,
+    write_disk=False,
+    save_vis=False,
+    dynamic_mask_prefix="raft",
+    dynamic_mask_suffix="_5mask.png",
     depth_overrides=None,
     prev_instance_overrides=None,
 ):
@@ -405,19 +423,10 @@ def process_frame_raft_api(
             depth_overrides=depth_overrides,
             prev_instance_overrides=prev_instance_overrides,
             write_disk=write_disk,
+            save_vis=save_vis,
+            dynamic_mask_prefix=dynamic_mask_prefix,
+            dynamic_mask_suffix=dynamic_mask_suffix,
         )
-    frame_name = f"{frame:0>2d}"
-    if write_disk:
-        for cam in range(6):
-            if cam not in dynamic_masks:
-                mask_path = os.path.join(scene_out, f"raft_{cam}", f"{frame_name}_5mask.png")
-                if os.path.exists(mask_path):
-                    dynamic_masks[cam] = cv2.imread(mask_path, cv2.IMREAD_UNCHANGED)
-    elif frame > 0:
-        for cam in range(6):
-            mask_path = os.path.join(scene_out, f"raft_{cam}", f"{frame_name}_5mask.png")
-            if os.path.exists(mask_path):
-                os.remove(mask_path)
     return {
         "state": {
             "image_prev": image_prev,

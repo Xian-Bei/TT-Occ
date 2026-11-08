@@ -11,6 +11,7 @@ import open3d as o3d
 import torch
 import torch.nn.functional as F
 from sklearn.neighbors import NearestNeighbors
+from scipy.spatial import cKDTree
 from plyfile import PlyData, PlyElement
 from simple_knn._C import distCUDA2
 from torch import nn
@@ -289,10 +290,11 @@ class GaussianModel:
 
         self.rotation_activation = torch.nn.functional.normalize
 
-    def __init__(self, optimizer_type="default", use_fusion=False):
+    def __init__(self, optimizer_type="default", use_fusion=False, fusion_unknown_abstention=True):
         self.active_sh_degree = 0
         self.optimizer_type = optimizer_type
         self.use_fusion = use_fusion
+        self.fusion_unknown_abstention = bool(fusion_unknown_abstention)
         self._xyz = torch.empty(0)
         self._rgb = torch.empty(0)
         self._semantic = torch.empty(0)
@@ -457,9 +459,21 @@ class GaussianModel:
             point_xyz = point_xyz[valid_mask]
             point_sem = point_sem[valid_mask]
 
-        voxel_indices = (point_xyz / voxel_size).int()
+        # nuCraft's 0.2 m grid is anchored at min_bound. Truncating signed
+        # coordinates toward zero shifts negative coordinates by a cell.
+        is_nucraft_grid = math.isclose(float(voxel_size), 0.2, rel_tol=0.0, abs_tol=1e-9)
+        if is_nucraft_grid:
+            voxel_indices = torch.floor(
+                (point_xyz.double() - min_bound.double()) / float(voxel_size)
+            ).to(torch.int32)
+            grid_size = torch.round((max_bound - min_bound) / float(voxel_size)).to(torch.int32)
+            # Points were clipped to [min_bound, max_bound) above; guard only
+            # representational rounding at the valid outer grid boundary.
+            voxel_indices = voxel_indices.clamp_min(0).minimum(grid_size - 1)
+        else:
+            voxel_indices = (point_xyz / voxel_size).int()
         unique, unique_inverse = torch.unique(voxel_indices, dim=0, return_inverse=True)
-        voxel_indices = unique - (min_bound/voxel_size).int()
+        voxel_indices = unique if is_nucraft_grid else unique - (min_bound/voxel_size).int()
         assert torch.all(voxel_indices >= 0)
 
         voxel_sem = torch.zeros((len(unique), point_sem.shape[1]), dtype=torch.float32, device=point_xyz.device)
@@ -533,7 +547,19 @@ class GaussianModel:
             #                                   train_data['point_xyz'][point_instance_id_dst == pair[1]], 
             #                                   flow_3d[self.point_instance_id_src == pair[0]], window_name=f"Flow Visualization for ID {pair[0]} to {pair[1]}")
             self.detach_dict['_xyz'] += flow_3d
-            del_dyn_point_mask = (self.point_instance_id_src > 0) & (new_id == 0)
+            # Keep unmatched LiDAR instance history for ages 1/2/3; expire
+            # at age 4. Original background (ID 0, age 0) never expires here.
+            previous_age = getattr(self, '_unmatched_age', None)
+            if previous_age is None:
+                previous_age = torch.zeros_like(new_id, dtype=torch.int32)
+            first_unmatched = (self.point_instance_id_src > 0) & (new_id == 0)
+            active = (previous_age > 0) | first_unmatched
+            next_age = previous_age + active.to(previous_age.dtype)
+            del_dyn_point_mask = active & (next_age > 3)
+            self._unmatched_age = torch.cat([
+                torch.zeros(len(train_data['point_xyz']), dtype=torch.int32, device=new_id.device),
+                next_age[~del_dyn_point_mask],
+            ])
             new_id = new_id[~del_dyn_point_mask]
             self.point_instance_id_src = torch.cat([point_instance_id_dst, new_id], dim=0)
 
@@ -647,30 +673,36 @@ class GaussianModel:
 
     @torch.no_grad()
     def _fusion_weighted(self, K, sigma_c=1, sigma_s=1):
+        xyz = self.detach_dict['_xyz']
+        sem = self.detach_dict['_semantic']
+        rgb = self.detach_dict['_rgb']
+        if len(xyz) == 0:
+            return
         scaling = self.scaling_activation(self.detach_dict['_scaling'])
         rotation = self.rotation_activation(self.detach_dict['_rotation'])
-
-        xyz_np = self.detach_dict['_xyz'].cpu().numpy()
-        xyz_dis, xyz_ind = query_np_kdtree(xyz_np, xyz_np, k=K, max_dist=np.inf) # (N, K)
-        if len(xyz_ind.shape) == 1:
-            xyz_ind = xyz_ind[:, None]  
-        
-        xyz_weight = self.gaussian_spatial_weight_fused(
-                                                self.detach_dict['_xyz'].unsqueeze(1), # (N, 1, 3) 
-                                                self.detach_dict['_xyz'][xyz_ind], # (N, K, 3)
-                                                scaling, # (N, 3),
-                                                scaling[xyz_ind], # (N, K, 3)
-                                                rotation, # (N, 4)
-                                                rotation[xyz_ind] # (N, K, 4)
-                                            )  # N, K
-        
-        rgb_weight = self.gaussian_radiometric_weight(self.detach_dict['_rgb'].unsqueeze(1), self.detach_dict['_rgb'][xyz_ind], sigma=sigma_c)  # N, K
-        
-        neighbor_sem = self.detach_dict['_semantic'][xyz_ind]  # N, K, C
-        semantic_weight = self.gaussian_semantic_weight(self.detach_dict['_semantic'].unsqueeze(1), neighbor_sem, sigma=sigma_s)  # N, K
-        
-        weight = xyz_weight + rgb_weight + semantic_weight  # N, K
-        weight /= weight.sum(dim=1, keepdim=True)  # N, K
-        
-        self.detach_dict['_semantic'] = (neighbor_sem * weight.unsqueeze(-1)).sum(dim=1)  # N, C
-        self.detach_dict['_semantic'] /= self.detach_dict['_semantic'].sum(dim=1, keepdim=True)
+        xyz_np = xyz.cpu().numpy()
+        _, neighbors = cKDTree(xyz_np).query(
+            xyz_np, k=min(K, len(xyz)), workers=int(os.getenv("TTOCC_NN_WORKERS", "16")))
+        if neighbors.ndim == 1:
+            neighbors = neighbors[:, None]
+        result = torch.empty_like(sem)
+        for start in range(0, len(xyz), 25000):
+            stop = min(start + 25000, len(xyz))
+            idx = torch.as_tensor(neighbors[start:stop], device=xyz.device)
+            spatial = self.gaussian_spatial_weight_fused(
+                xyz[start:stop].unsqueeze(1), xyz[idx],
+                scaling[start:stop], scaling[idx], rotation[start:stop], rotation[idx])
+            color = self.gaussian_radiometric_weight(rgb[start:stop].unsqueeze(1), rgb[idx], sigma=sigma_c)
+            neighbor_sem = sem[idx]
+            semantic = self.gaussian_semantic_weight(sem[start:stop].unsqueeze(1), neighbor_sem, sigma=sigma_s)
+            weight = spatial + color + semantic
+            weight /= weight.sum(dim=1, keepdim=True)
+            result[start:stop] = (neighbor_sem * weight.unsqueeze(-1)).sum(dim=1)
+        # Class 0 is unknown: abstain when neighbors carry a known label.
+        # The tolerance excludes the small initialization/normalization floor;
+        # neighborhoods containing only unknown labels must remain unknown.
+        if self.fusion_unknown_abstention:
+            has_known = result[:, 1:].sum(dim=1) > 5e-5
+            result[has_known, 0] = 0
+        result /= result.sum(dim=1, keepdim=True)
+        self.detach_dict['_semantic'] = result

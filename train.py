@@ -11,6 +11,11 @@
 
 import ipdb
 import torch
+# Append optional dependencies after loading Torch from the active environment.
+import sys
+import os
+if os.getenv("TTOCC_EXTRA_SITE_PACKAGES"):
+    sys.path.append(os.environ["TTOCC_EXTRA_SITE_PACKAGES"])
 import os
 import random
 import numpy as np
@@ -76,6 +81,7 @@ def training(model_params, optimization_params, pipeline_params, debug_from):
     gaussians = GaussianModel(
         optimization_params.optimizer_type,
         use_fusion=optimization_params.use_fusion,
+        fusion_unknown_abstention=optimization_params.fusion_unknown_abstention,
     )
     scene = Scene(model_params, optimization_params, pipeline_params, gaussians, background)
     total_frame = scene.total_frame

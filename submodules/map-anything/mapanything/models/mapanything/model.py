@@ -78,11 +78,7 @@ from uniception.models.prediction_heads.mlp_head import MLPHead
 from uniception.models.prediction_heads.pose_head import PoseHead
 from uniception.models.utils.transformer_blocks import Mlp, SwiGLUFFN, SwiGLUFFNFused
 
-# Enable TF32 precision if supported (for GPU >= Ampere and PyTorch >= 1.12)
-if hasattr(torch.backends.cuda, "matmul") and hasattr(
-    torch.backends.cuda.matmul, "allow_tf32"
-):
-    torch.backends.cuda.matmul.allow_tf32 = True
+# Backend precision is owned by the caller; imports have no global math side effects.
 
 
 class MapAnything(nn.Module, PyTorchModelHubMixin):
@@ -103,6 +99,7 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         load_specific_pretrained_submodules: bool = False,
         specific_pretrained_submodules: list = None,
         torch_hub_force_reload: bool = False,
+        use_register_tokens_from_encoder: bool = False,
     ):
         """
         Multi-view model containing an image encoder fused with optional geometric modalities followed by a multi-view attention transformer and respective downstream heads.
@@ -134,6 +131,7 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         self.load_specific_pretrained_submodules = load_specific_pretrained_submodules
         self.specific_pretrained_submodules = specific_pretrained_submodules
         self.torch_hub_force_reload = torch_hub_force_reload
+        self.use_register_tokens_from_encoder = use_register_tokens_from_encoder
         self.class_init_args = {
             "name": self.name,
             "encoder_config": self.encoder_config,
@@ -145,6 +143,7 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
             "load_specific_pretrained_submodules": self.load_specific_pretrained_submodules,
             "specific_pretrained_submodules": self.specific_pretrained_submodules,
             "torch_hub_force_reload": self.torch_hub_force_reload,
+            "use_register_tokens_from_encoder": self.use_register_tokens_from_encoder,
         }
 
         # Get relevant parameters from the configs
@@ -648,29 +647,23 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
                 print(self.load_state_dict(filtered_ckpt, strict=False))
 
     def _encode_n_views(self, views):
-        """
-        Encode all the input views (batch of images) in a single forward pass.
-        Assumes all the input views have the same image shape, batch size, and data normalization type.
-
-        Args:
-            views (List[dict]): List of dictionaries containing the input views' images and instance information.
-
-        Returns:
-            List[torch.Tensor]: A list containing the encoded features for all N views.
-        """
-        num_views = len(views)
-        data_norm_type = views[0]["data_norm_type"][0]
-        imgs_list = [view["img"] for view in views]
-        all_imgs_across_views = torch.cat(imgs_list, dim=0)
-        encoder_input = ViTEncoderInput(
-            image=all_imgs_across_views, data_norm_type=data_norm_type
-        )
-        encoder_output = self.encoder(encoder_input)
-        all_encoder_features_across_views = encoder_output.features.chunk(
-            num_views, dim=0
-        )
-
-        return all_encoder_features_across_views
+        """Encode independent images in batches; keep all views for joint attention."""
+        features, registers = [], []
+        for start in range(0, len(views), 6):
+            batch = views[start:start + 6]
+            encoder_output = self.encoder(
+                ViTEncoderInput(
+                    image=torch.cat([view["img"] for view in batch], dim=0),
+                    data_norm_type=batch[0]["data_norm_type"][0],
+                )
+            )
+            features.extend(encoder_output.features.chunk(len(batch), dim=0))
+            if (
+                self.use_register_tokens_from_encoder
+                and encoder_output.registers is not None
+            ):
+                registers.extend(encoder_output.registers.chunk(len(batch), dim=0))
+        return tuple(features), tuple(registers) if registers else None
 
     def _compute_pose_quats_and_trans_for_across_views_in_ref_view(
         self,
@@ -1301,6 +1294,9 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         Returns:
             Computed minibatch size
         """
+        fixed_batch = getattr(self, "inference_minibatch_size", None)
+        if fixed_batch is not None:
+            return max(1, int(fixed_batch))
         device = self.device
 
         if device.type == "cuda":
@@ -1537,7 +1533,9 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         num_views = len(views)
 
         # Run the image encoder on all the input views
-        all_encoder_features_across_views = self._encode_n_views(views)
+        all_encoder_features_across_views, all_encoder_registers_across_views = (
+            self._encode_n_views(views)
+        )
 
         # Encode the optional geometric inputs and fuse with the encoded features from the N input views
         # Use high precision to prevent NaN values after layer norm in dense representation encoder (due to high variance in last dim of features)
@@ -1559,6 +1557,7 @@ class MapAnything(nn.Module, PyTorchModelHubMixin):
         # Output is a list containing the encoded features for all N views after information sharing.
         info_sharing_input = MultiViewTransformerInput(
             features=all_encoder_features_across_views,
+            additional_input_tokens_per_view=all_encoder_registers_across_views,
             additional_input_tokens=input_scale_token,
         )
         if self.info_sharing_return_type == "no_intermediate_features":

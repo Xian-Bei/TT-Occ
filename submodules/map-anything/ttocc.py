@@ -17,7 +17,7 @@ import shutil
 from torchvision import transforms as TF
 import cv2
 
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 
 import numpy as np
 import pycolmap
@@ -42,9 +42,7 @@ from uniception.models.encoders.image_normalizations import IMAGE_NORMALIZATION_
 import gc
 
 # Configure CUDA settings
-torch.backends.cudnn.enabled = True
-torch.backends.cudnn.benchmark = True
-torch.backends.cudnn.deterministic = False
+# The caller owns backend precision; importing a provider must not change it.
 
 
 def parse_args():
@@ -392,6 +390,8 @@ def run_mapanything_depth_only(
     memory_efficient_inference=False,
     use_amp=True,
     amp_dtype="bf16",
+    apply_mask=True,
+    mask_edges=False,
 ):
     """
     Run MapAnything and only return depth_z maps for each input view.
@@ -419,8 +419,8 @@ def run_mapanything_depth_only(
         memory_efficient_inference=memory_efficient_inference,
         use_amp=use_amp,
         amp_dtype=amp_dtype,
-        apply_mask=False,
-        mask_edges=False,
+        apply_mask=apply_mask,
+        mask_edges=mask_edges,
     )
 
     depth_maps = []

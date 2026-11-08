@@ -392,11 +392,23 @@ def cal_hist(pred_occ, gt_occ):
             minlength=(num_classes+1)**2
         ).reshape((num_classes+1), (num_classes+1))
     
-def cal_iou_miou(hist):
+def cal_iou_miou(hist, keep_pred0=False):
     # not consider 0 (noise) and 12 (other_flat) class
     if isinstance(hist, torch.Tensor):
         hist = torch.cat((hist[1:12], hist[13:]), dim=0)  
-        hist = torch.cat((hist[:, 1:12], hist[:, 13:]), dim=1) 
+        if keep_pred0:
+            # Ignore GT classes 0/12 as before, but count foreground -> 0
+            # predictions as false negatives. Class 12 remains excluded.
+            hist = torch.cat((hist[:, :12], hist[:, 13:]), dim=1)
+            intersection = torch.diag(hist[:, 1:])
+            mious = intersection / (hist.sum(dim=1) + hist[:, 1:].sum(dim=0) - intersection)
+            mious = mious[:-1]
+            occupied_tp = hist[:-1, 1:-1].sum()
+            occupied_fp = hist[-1, 1:-1].sum()
+            occupied_fn = hist[:-1, 0].sum() + hist[:-1, -1].sum()
+            iou = occupied_tp / (occupied_tp + occupied_fp + occupied_fn)
+            return iou, torch.nanmean(mious), mious
+        hist = torch.cat((hist[:, 1:12], hist[:, 13:]), dim=1)
         n = hist.shape[0]
 
         TP_occupied = torch.sum(hist[:n-1, :n-1])  

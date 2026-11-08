@@ -71,5 +71,9 @@ vis/
 # Ignore any folder that starts with "out"
 results*/
 nouse/
-precomputed/
+precomputed*/
 tmp/
+feature-cache/
+
+# Internal notes (never publish)
+/local-notes/

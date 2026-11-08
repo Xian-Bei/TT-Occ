@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import json
 import shutil
 import subprocess
 import ipdb
@@ -181,8 +182,6 @@ def merge_bicycle_motorcycle(img_ret_id, info_ret):
 def vis(img_ret_id, info_ret):
     info_category_id = mapping[np.array([x['category_id'] for x in info_ret])]
     info_category_id = np.array([0] + info_category_id.tolist()).astype(np.uint8)
-    if 1 in info_category_id or 9 in info_category_id:
-        print("#############################################################################")
     img_category_id = info_category_id[img_ret_id]
     img_category_id_vis = colors[img_category_id]
     # img_category_id_vis = Image.fromarray(img_category_id_vis)
@@ -206,6 +205,8 @@ def save(outputs, batch_inputs, output_root, save_vis, vis_dir):
             cv2.imwrite(os.path.join(output_root, f'{batch_inputs[i]["image_name"]}_instance.png'), pano_seg.astype(np.uint8))
             if save_vis:
                 Image.fromarray(res_vis).save(os.path.join(vis_dir, f'{batch_inputs[i]["image_name"]}_vis.png'))
+                _save_instance_vis_png(pano_seg.astype(np.uint8), os.path.join(
+                    vis_dir, f'{batch_inputs[i]["image_name"]}_instance_vis.png'))
 
 
 def get_own_gpu_memory(gpu=0):
@@ -222,6 +223,14 @@ def get_own_gpu_memory(gpu=0):
         if int(proc_pid.strip()) == pid:
             return int(mem.strip())  # 单位MB
     return 0  # 如果没查到
+
+def _save_instance_vis_png(instance_map, save_path):
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    from utils.precompute_vis import save_instance_vis_png
+    save_instance_vis_png(instance_map, save_path)
+
 
 def get_inference_context(use_inference_mode=True):
     return torch.inference_mode if use_inference_mode else torch.no_grad
@@ -246,7 +255,7 @@ def _resolve_weight_path(weight_path):
             return p
     return weight_path
 
-def build_openseed_runtime(conf_file, weight_path, use_inference_mode=True):
+def build_openseed_runtime(conf_file, weight_path, use_inference_mode=True, text_is_eval=False):
     weight_path = _resolve_weight_path(weight_path)
     opt, _ = load_opt_command(['evaluate', '--conf_files', conf_file, '--overrides', 'WEIGHT', weight_path])
     pretrained_pth = _resolve_weight_path(opt['WEIGHT'])
@@ -255,7 +264,7 @@ def build_openseed_runtime(conf_file, weight_path, use_inference_mode=True):
     t = [transforms.Resize(512, interpolation=Image.BICUBIC)]
     transform = transforms.Compose(t)
     model.model.sem_seg_head.predictor.lang_encoder.get_text_embeddings(
-        thing_classes + stuff_classes, is_eval=False
+        thing_classes + stuff_classes, is_eval=bool(text_is_eval)
     )
     model.model.metadata = metadata
     model.model.sem_seg_head.num_classes = len(thing_classes + stuff_classes)
@@ -263,6 +272,7 @@ def build_openseed_runtime(conf_file, weight_path, use_inference_mode=True):
         "model": model,
         "transform": transform,
         "use_inference_mode": use_inference_mode,
+        "text_is_eval": bool(text_is_eval),
     }
 
 def process_scene(runtime, scene_in, scene_out, save_vis=False):
@@ -329,7 +339,43 @@ def _run_single_prediction(output):
     return semantic_map.astype(np.uint8), instance_map, semantic_vis
 
 
-def process_frame_openseed(runtime, scene_in, scene_out, frame, save_vis=False, write_disk=True):
+def process_frame_openseed(
+    runtime,
+    scene_in,
+    scene_out,
+    frame,
+    save_vis=False,
+    write_disk=True,
+    semantic_prefix="openseed",
+    semantic_output="panoptic",
+    instance_mode="panoptic",
+):
+    if semantic_output not in {"panoptic", "sem_seg"}:
+        raise ValueError(f"Unsupported OpenSeeD semantic output: {semantic_output}")
+    if instance_mode not in {"panoptic", "none"}:
+        raise ValueError(f"Unsupported OpenSeeD instance mode: {instance_mode}")
+    if write_disk:
+        # A semantic cache must identify the settings that generated it.
+        semantic_dir = os.path.join(scene_out, f"{semantic_prefix}_0")
+        recipe_root = os.path.dirname(os.path.realpath(semantic_dir))
+        os.makedirs(recipe_root, exist_ok=True)
+        recipe_path = os.path.join(recipe_root, "openseed_recipe.json")
+        recipe = {"text_is_eval": bool(runtime.get("text_is_eval", False)),
+                  "semantic_output": semantic_output, "instance_mode": instance_mode}
+        if os.path.exists(recipe_path):
+            with open(recipe_path) as stream:
+                if json.load(stream) != recipe:
+                    raise ValueError(f"OpenSeeD cache settings changed: {recipe_path}")
+        else:
+            if (recipe != {"text_is_eval": False, "semantic_output": "panoptic", "instance_mode": "panoptic"}
+                    and os.path.isdir(semantic_dir)
+                    and any(name.endswith('.png') for name in os.listdir(semantic_dir))):
+                raise ValueError(f"Cannot append different settings to an untagged OpenSeeD cache: {semantic_dir}")
+            with open(recipe_path + ".tmp", "w") as stream:
+                json.dump(recipe, stream)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(recipe_path + ".tmp", recipe_path)
     model = runtime["model"]
     transform = runtime["transform"]
     use_inference_mode = runtime["use_inference_mode"]
@@ -352,21 +398,37 @@ def process_frame_openseed(runtime, scene_in, scene_out, frame, save_vis=False, 
                 "image_ori": image_ori,
             }]
             with get_autocast_context():
-                outputs = model.forward(batch_inputs)
-            semantic_map, instance_map, semantic_vis = _run_single_prediction(outputs[0])
+                task = "sem_seg" if semantic_output == "sem_seg" and instance_mode == "none" else "seg"
+                outputs = model.forward(batch_inputs, inference_task=task)
+            if semantic_output == "panoptic":
+                semantic_map, instance_map, semantic_vis = _run_single_prediction(outputs[0])
+            else:
+                indices = outputs[0]["sem_seg"].argmax(0).cpu().numpy()
+                semantic_map = mapping[indices].astype(np.uint8)
+                if instance_mode == "panoptic":
+                    _, instance_map, _ = _run_single_prediction(outputs[0])
+                else:
+                    instance_map = np.zeros_like(semantic_map, dtype=np.uint8)
+                semantic_vis = colors[semantic_map]
+            if instance_mode == "none":
+                instance_map = np.zeros_like(semantic_map, dtype=np.uint8)
             frame_outputs[cam] = {
                 "semantic": semantic_map,
                 "instance": instance_map,
             }
+            cam_output_root = os.path.join(scene_out, f"{semantic_prefix}_{cam}")
             if write_disk:
-                cam_output_root = os.path.join(scene_out, f"openseed_{cam}")
                 os.makedirs(cam_output_root, exist_ok=True)
                 Image.fromarray(semantic_map).save(os.path.join(cam_output_root, f"{frame_name}.png"))
                 Image.fromarray(instance_map).save(os.path.join(cam_output_root, f"{frame_name}_instance.png"))
-                if save_vis:
-                    vis_dir = os.path.join(cam_output_root, "vis")
-                    os.makedirs(vis_dir, exist_ok=True)
-                    Image.fromarray(semantic_vis).save(os.path.join(vis_dir, f"{frame_name}_vis.png"))
+            if save_vis:
+                vis_dir = os.path.join(cam_output_root, "vis")
+                os.makedirs(vis_dir, exist_ok=True)
+                Image.fromarray(semantic_vis).save(os.path.join(vis_dir, f"{frame_name}_vis.png"))
+                _save_instance_vis_png(
+                    instance_map,
+                    os.path.join(vis_dir, f"{frame_name}_instance_vis.png"),
+                )
     return frame_outputs
 
 if __name__ == "__main__":

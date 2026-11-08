@@ -120,9 +120,14 @@ def thread_worker(scene, data_root, nusc, save_root):
     return scene['name'], result 
     
 if __name__ == "__main__":
-    split = 'val'
-    data_root = '/media/fengyi/bb/nuscenes'
-    save_root = f'/home/fengyi/Data/new_extracted_nuscenes_{split}'
+    import argparse
+    parser = argparse.ArgumentParser(description="Extract nuScenes images, poses and LiDAR sweeps")
+    parser.add_argument('--data-root', required=True)
+    parser.add_argument('--save-root', required=True)
+    parser.add_argument('--split', choices=['train', 'val'], default='val')
+    args = parser.parse_args()
+    split, data_root, save_root = args.split, args.data_root, args.save_root
+    os.makedirs(save_root, exist_ok=True)
 
     scene_splits = create_splits_scenes()
     nusc = NuScenes(version='v1.0-trainval', dataroot=data_root, verbose=True)

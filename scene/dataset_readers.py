@@ -42,7 +42,6 @@ def scene_feature_requirements(
     reqs = [f"{semantic_prefix}_{cam}" for cam in range(6)]
     if source == "depth":
         reqs += [f"{depth_prefix}_{cam}" for cam in range(6)]
-        reqs += [f"{dynamic_mask_prefix}_{cam}" for cam in range(6)]
     return reqs
 
 
@@ -59,13 +58,9 @@ def frame_feature_requirements(
     reqs = []
     for cam in range(6):
         reqs.append(f"{semantic_prefix}_{cam}/{frame_name}.png")
-        reqs.append(f"{semantic_prefix}_{cam}/{frame_name}_instance.png")
     if source == "depth":
         for cam in range(6):
             reqs.append(f"{depth_prefix}_{cam}/{frame_name}.{depth_ext}")
-        if int(frame_id) > 0:
-            for cam in range(6):
-                reqs.append(f"{dynamic_mask_prefix}_{cam}/{frame_name}{dynamic_mask_suffix}")
     return reqs
 
 def require_file(path, description):
@@ -97,11 +92,16 @@ def _read_instance(features_dir, sem_prefix, cam, frame, memory_features=None):
         ins = ins_mem.get(cam)
         if ins is not None:
             return ins.copy(), None
-    instance_path = require_file(
-        join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}_instance.png"),
-        "instance mask",
-    )
-    return read_image(instance_path, cv2.IMREAD_UNCHANGED, description="instance mask"), instance_path
+        sem_mem = memory_features.get("semantic", {})
+        sem = sem_mem.get(cam)
+        if sem is not None:
+            return np.zeros(sem.shape[:2], dtype=np.uint8), None
+    instance_path = join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}_instance.png")
+    if os.path.exists(instance_path):
+        return read_image(instance_path, cv2.IMREAD_UNCHANGED, description="instance mask"), instance_path
+    semantic_path = join(features_dir, f"{sem_prefix}_{cam}/{frame:0>2d}.png")
+    semantic = read_image(semantic_path, -1, description="semantic mask")
+    return np.zeros(semantic.shape[:2], dtype=np.uint8), None
 
 
 def _read_depth(features_dir, depth_prefix, depth_ext, cam, frame, memory_features=None):
@@ -120,8 +120,7 @@ def _read_dynamic_mask(features_dir, dynamic_mask_prefix, dynamic_mask_suffix, c
         dyn = dyn_mem.get(cam)
         if dyn is not None:
             return dyn.copy(), None
-    dyn_mask_path = join(features_dir, f"{dynamic_mask_prefix}_{cam}/{frame:0>2d}{dynamic_mask_suffix}")
-    return read_image(dyn_mask_path, -1, description="dynamic mask"), dyn_mask_path
+    return None, None
 
 def visualize_point_clouds(pts, ids, window_name="Point Cloud Visualization"):
     if isinstance(pts, torch.Tensor):
@@ -288,6 +287,7 @@ def load_nuscenes(
     dynamic_mask_suffix="_5mask.png",
     feature_root="",
     memory_features=None,
+    load_cameras=True,
 ):
     sem_prefix = semantic_prefix
     features_dir = precomputed_scene_dir(path, feature_root)
@@ -408,8 +408,6 @@ def load_nuscenes(
         # visualize_point_clouds(xyz_world[point_instance_id>0], point_instance_id[point_instance_id>0], 'preprocessed instance point cloud')
         # visualize_point_clouds(xyz_world, point_sem.argmax(1), 'preprocessed semantic point cloud')
         ####################################
-        point_sem[:, 1] = 0
-        point_sem[:, 9] = 0
         point_sem = point_sem+1e-6
         point_sem /= point_sem.sum(1, keepdims=True)
 
@@ -421,7 +419,7 @@ def load_nuscenes(
             'intrinsic3x3_ls': intrinsic3x3_ls,
             'world2cam_ls': world2cam_ls,
         }
-        train_cameras = [loadCam(id, c, 1, False, False) for id, c in enumerate(train_cam_infos)] 
+        train_cameras = [loadCam(id, c, 1, False, False) for id, c in enumerate(train_cam_infos)] if load_cameras else []
 
     elif source == 'depth':
         train_cam_infos = []
@@ -447,7 +445,7 @@ def load_nuscenes(
             depth, _ = _read_depth(
                 features_dir, depth_prefix, depth_ext, cam, frame, memory_features=memory_features
             )
-            depth = cv2.resize(depth, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_NEAREST)
+            depth = cv2.resize(depth, None, fx=0.4, fy=0.4, interpolation=cv2.INTER_NEAREST)
             height, width = depth.shape 
 
             name = f"{cam}/{frame:0>2d}"
@@ -498,7 +496,10 @@ def load_nuscenes(
                     frame,
                     memory_features=memory_features,
                 )
-                dyn_mask = cv2.resize(dyn_mask, (width, height), interpolation=cv2.INTER_NEAREST)
+                if dyn_mask is None:
+                    dyn_mask = np.zeros((height, width), dtype=np.uint8)
+                else:
+                    dyn_mask = cv2.resize(dyn_mask, (width, height), interpolation=cv2.INTER_NEAREST)
                 dyn_mask = dyn_mask > 0
                 dyn_mask = torch.tensor(dyn_mask)
                 dynamic_mask_ls.append(dyn_mask)  # [N]
@@ -551,8 +552,6 @@ def load_nuscenes(
         point_rgb = torch.from_numpy(point_rgb).float()
         point_sem = torch.from_numpy(point_sem).float()
         point_rgb = point_rgb / 255.0
-        point_sem[:, 1] = 0
-        point_sem[:, 9] = 0
         point_sem = point_sem+1e-6
         point_sem /= point_sem.sum(1, keepdims=True)
         point_cloud = {
@@ -563,7 +562,7 @@ def load_nuscenes(
             'dynamic_mask_ls': dynamic_mask_ls,
             'intrinsic3x3_ls': intrinsic3x3_scaled_ls,
         }
-        train_cameras = [loadCam(id, c, 2, False, False) for id, c in enumerate(train_cam_infos)]
+        train_cameras = [loadCam(id, c, 2, False, False) for id, c in enumerate(train_cam_infos)] if load_cameras else []
     # for k, v in point_cloud.items():
     #     print(k, v.shape)
     return {

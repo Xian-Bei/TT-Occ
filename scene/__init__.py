@@ -12,6 +12,7 @@
 import os
 import random
 import json
+from pathlib import Path
 from scene.dataset_readers import *
 import itertools
 from scene.gaussian_model import GaussianModel
@@ -22,12 +23,11 @@ import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from custom_utils import *
 from utils.testtime_precompute import ScenePrecomputeManager
+from utils.inference_precision import inference_precision
 
 
 def get_autocast_context():
-    use_bf16 = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
-    dtype = torch.bfloat16 if use_bf16 else torch.float16
-    return torch.cuda.amp.autocast(enabled=torch.cuda.is_available(), dtype=dtype)
+    return inference_precision(matmul_tf32=True, autocast=False)
 
 
 class Scene:
@@ -48,7 +48,7 @@ class Scene:
 
     @torch.no_grad()
     def load_frame(self, frame_id):
-        if self.opt.enable_testtime_precompute:
+        if self.opt.enable_testtime_precompute or self.opt.precompute_cache_only:
             self.precompute_manager.wait_prefetch_frame(self.scene_path, frame_id)
             self.precompute_manager.ensure_frame_features(self.scene_path, frame_id, self.opt.variant, self.opt)
         memory_features = self.precompute_manager.get_cached_frame_features(self.scene_path, frame_id)
@@ -65,6 +65,7 @@ class Scene:
             dynamic_mask_suffix=self.opt.dynamic_mask_suffix,
             feature_root=self.opt.feature_root,
             memory_features=memory_features,
+            load_cameras=self.opt.iterations > 0,
         )
         point_cloud = scene_info['train_data']
         if self.opt.occ_setting == "Occ3D":
@@ -115,7 +116,9 @@ class Scene:
         self.save_futures = []
         self.schedule_load(0)
         self.train_cameras_this_timestep = []
-        self.total_frame = int((len(os.listdir(join(self.scene_path, "0")))-1)/2)
+        self.total_frame = len(list(Path(self.scene_path, "0").glob("*.jpg")))
+        if self.opt.max_frames > 0:
+            self.total_frame = min(self.total_frame, self.opt.max_frames)
         root, self.scene = os.path.split(self.scene_path)
         self.data_root = root
         self.model_path = model_params.model_path
@@ -123,13 +126,13 @@ class Scene:
         if self.opt.save_ply:
             self.ply_path = os.path.join(self.model_path, "point_cloud")
             os.makedirs(self.ply_path, exist_ok=True)
-        if self.opt.save_occ:
+        if self.opt.save_occ and not self.opt.histogram_only:
             self.occ_path = os.path.join(self.model_path, "Occ")
             os.makedirs(self.occ_path, exist_ok=True)
         if self.opt.eval_occ:
             self.mapping = json.load(open(os.path.join(root, "mapping.json")))[self.scene]
-        self.hist_occ3d_camera = torch.zeros((num_classes + 1, num_classes + 1), device='cuda')
-        self.hist_nucraft = torch.zeros((num_classes + 1, num_classes + 1), device='cuda')
+        self.hist_occ3d_camera = torch.zeros((num_classes + 1, num_classes + 1), device='cuda', dtype=torch.long)
+        self.hist_nucraft = torch.zeros((num_classes + 1, num_classes + 1), device='cuda', dtype=torch.long)
         # self.vis_occ = VoxelGridVisualizer('Comparison', 1, 600) if self.opt.vis_occ else None
         # os.makedirs(join(self.model_path, "Occ"), exist_ok=True)
         self.update_time = 0
@@ -158,7 +161,7 @@ class Scene:
         self.precompute_raft_time += pre_profile.get("raft_s", 0.0)
         self.precompute_raft_warmup_time += pre_profile.get("raft_warmup_s", 0.0)
         status = pre_profile.get("status", "unknown")
-        if status == "disk_hit":
+        if status.startswith("disk_hit"):
             self.precompute_disk_hit += 1
         elif status == "memory_hit":
             self.precompute_memory_hit += 1
@@ -173,11 +176,12 @@ class Scene:
 
         self.xyz = point_cloud['point_xyz']
         self.update_time += time.time() - start
-        if self.gaussians.N == 0:
-            self.gaussians.create_from_pcd(point_cloud)
-        else:
-            self.gaussians.update_detach_for_async_save_eval()
-            self.gaussians.add_from_pcd(point_cloud)
+        with get_autocast_context():
+            if self.gaussians.N == 0:
+                self.gaussians.create_from_pcd(point_cloud)
+            else:
+                self.gaussians.update_detach_for_async_save_eval()
+                self.gaussians.add_from_pcd(point_cloud)
         
             
             
@@ -197,7 +201,7 @@ class Scene:
                 self.save_futures.append(self.save_executor.submit(self.gaussians.save_ply, point_cloud_dir))
             else:
                 self.gaussians.save_ply(point_cloud_dir)
-        if self.opt.save_occ:
+        if self.opt.save_occ or (self.opt.eval_online and self.opt.eval_occ):
             start_time = time.time()
             with get_autocast_context():
                 voxel_indices_from_gs, voxel_cls_from_gs = self.gaussians.gs2voxel(
@@ -206,10 +210,24 @@ class Scene:
                     self.gaussians.detach_dict,
                 )
             self.voxelization_time += time.time() - start_time
-            voxel_cls_from_gs[voxel_cls_from_gs == 1] = 0
-            voxel_cls_from_gs[voxel_cls_from_gs == 9] = 0
             if self.opt.eval_online and self.opt.eval_occ:
                 self.eval(timestep, voxel_indices_from_gs, voxel_cls_from_gs)
+                if self.opt.eval_both_datasets:
+                    # Reuse the fused world-space cloud; nuCraft needs its own
+                    # LiDAR coordinate system and 0.2 m voxel grid.
+                    lidar2world = self.old_world2new_world @ np.loadtxt(
+                        join(self.scene_path, "lidar", f"{timestep:02d}.txt"))
+                    world2lidar = torch.tensor(np.linalg.inv(lidar2world), dtype=torch.float32, device='cuda')
+                    start_time = time.time()
+                    with get_autocast_context():
+                        nu_indices, nu_labels = self.gaussians.gs2voxel(
+                            world2lidar, *settings['nuCraft'], self.gaussians.detach_dict)
+                    self.voxelization_time += time.time() - start_time
+                    hist_nu, _ = eval_occ(timestep, nu_indices, nu_labels, 'nuCraft',
+                                          self.scene, self.mapping, gt_path=self.opt.nucraft_path)
+                    self.hist_nucraft += hist_nu
+            if not self.opt.save_occ or self.opt.histogram_only:
+                return
             occ_path = join(self.occ_path, f"{timestep:02d}.pth")
             occ_payload = {
                 "voxel_indices": voxel_indices_from_gs.cpu(),
@@ -260,6 +278,12 @@ class Scene:
     def report_results(self):
         self.wait_for_saves()
         self.result = {
+            "frames": self.total_frame,
+            "K": self.opt.K,
+            "fusion": self.opt.use_fusion,
+            "fusion_unknown_abstention": bool(self.opt.use_fusion and self.opt.fusion_unknown_abstention),
+            "unmatched_instance_ttl": 3 if self.opt.variant == 'lidar' else None,
+            "mapanything_scope": self.opt.mapanything_scope,
             "update_time": f"{self.update_time/self.total_frame*1000:.0f}ms", 
             "training_time": f"{self.training_time/self.total_frame*1000:.0f}ms", 
             "fusion_time": f"{self.fusion_time/self.total_frame*1000:.0f}ms", 
@@ -295,6 +319,20 @@ class Scene:
                 if self.opt.verbose:
                     print(f"{result_key}: iou={iou:.4f}, miou={miou:.4f}")
 
+            histogram = self.hist_occ3d_camera if self.opt.occ_setting == "Occ3D" else self.hist_nucraft
+            torch.save(histogram.cpu(), join(self.model_path, "hist.pth"))
+            if self.opt.eval_both_datasets:
+                torch.save(self.hist_nucraft.cpu(), join(self.model_path, "hist_nucraft.pth"))
+            self.result['metrics_keep_pred0'] = {}
+            histograms = {self.opt.occ_setting: histogram}
+            if self.opt.eval_both_datasets:
+                histograms['nuCraft'] = self.hist_nucraft
+            for dataset, hist in histograms.items():
+                iou_keep, miou_keep, classes_keep = cal_iou_miou(hist, keep_pred0=True)
+                self.result['metrics_keep_pred0'][dataset] = {
+                    'miou': float(miou_keep), 'iou': float(iou_keep),
+                    'mious': {name: float(value) for name, value in zip(semantic_list, classes_keep)},
+                }
             file_path = join(self.model_path, "result.json")
             json_data = json.dumps(self.result, default=custom_encoder, indent=4)
             with open(file_path, "w") as f:

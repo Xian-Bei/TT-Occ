@@ -9,16 +9,12 @@ import sys
 
 
 from argparse import ArgumentParser
-parser = ArgumentParser(description="Training script parameters")
-parser.add_argument('--data_path', type=str, default="/home/fengyi/Data/new_extracted_nuscenes_val")
-
-# /media/fengyi/bb/Occ3D_nuscenes/gts/
-# /media/fengyi/bb/nuCraft/occupancy@0.2/
-parser.add_argument('--gt_path', type=str, default='/media/fengyi/bb/Occ3D_nuscenes/gts/')
-parser.add_argument('--dataset', type=str, default='Occ3D')
-
-# parser.add_argument('--gt_path', type=str, default='/media/fengyi/bb/Occ3D_nuscenes/gts/')
-# parser.add_argument('--dataset', type=str, default='Occ3D')
+parser = ArgumentParser(description="Visualize occupancy predictions and GT")
+parser.add_argument('--data_path', type=str, required=True)
+parser.add_argument('--gt_path', type=str, required=True)
+parser.add_argument('--dataset', choices=['Occ3D', 'nuCraft'], default='Occ3D')
+parser.add_argument('--model-paths', nargs='+', required=True,
+                    help='Prediction directories containing scene-*/Occ/*.pth')
 
 args = parser.parse_args(sys.argv[1:])
 data_path = args.data_path
@@ -27,12 +23,7 @@ dataset = args.dataset
 
 mapping = json.load(open(f"{data_path}/mapping.json"))
 vis = VoxelGridVisualizer('Comparison', 1, 600, dataset)
-model_ls = [
-    # f'tp_selfocc/nucraft/selfocc_2',
-    # f'tp_selfocc/occ3d_all/selfocc',
-    'out-main-Occ3D/lidar-B',
-    
-]
+model_ls = args.model_paths
 
 for scene in sorted(os.listdir(model_ls[0]))[0:]:
     scene_dir = join(model_ls[0], scene)
