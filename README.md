@@ -1,6 +1,6 @@
 # TT-Occ: Test-Time Compute for Self-Supervised Occupancy
 
-[![arXiv](https://img.shields.io/badge/arXiv-2609.36842-b31b1b.svg)](https://arxiv.org/abs/2609.36842)
+[![arXiv](https://img.shields.io/badge/arXiv-2503.08485-b31b1b.svg)](https://arxiv.org/abs/2503.08485)
 
 ## Under Construction
 ![demo](assets/teaser.gif)

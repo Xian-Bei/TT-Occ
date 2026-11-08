@@ -1,6 +1,6 @@
 # TT-Occ: 面向自监督占据预测的测试时计算框架
 
-[![arXiv](https://img.shields.io/badge/arXiv-2609.36842-b31b1b.svg)](https://arxiv.org/abs/2609.36842)
+[![arXiv](https://img.shields.io/badge/arXiv-2503.08485-b31b1b.svg)](https://arxiv.org/abs/2503.08485)
 
 ## 持续更新中
 ![demo](assets/teaser.gif)
