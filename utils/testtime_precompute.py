@@ -408,6 +408,8 @@ class RexOmniRunner:
                 sem_id = self._mod.INDEX_MAPPING.get(category)
                 if sem_id is not None:
                     semantic[mask] = sem_id
+                    # A later stuff mask must also overwrite an earlier thing ID.
+                    instance[mask] = 0
                 if sem_id in self._mod.THING_INSTANCE_IDS:
                     instance[mask] = min(next_instance_id, 255)
                     next_instance_id += 1
